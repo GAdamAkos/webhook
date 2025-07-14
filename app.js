@@ -1,31 +1,24 @@
+// Import Express.js és más szükséges modulok
 const express = require('express');
 const fs = require('fs');
-const path = require('path');
 const axios = require('axios');
+const path = require('path');
 
+// Express app létrehozása
 const app = express();
+
+// Middleware a JSON feldolgozásához
 app.use(express.json());
 
-// Messages tároló fájl helye
-const MESSAGES_FILE = path.join(__dirname, 'messages.json');
-
-// Környezeti változók
+// Port és VERIFY_TOKEN / ACCESS_TOKEN környezeti változókból
 const port = process.env.PORT || 3000;
 const verifyToken = process.env.VERIFY_TOKEN;
-const whatsappToken = process.env.WHATSAPP_TOKEN;       // Meta API tokened
-const phoneNumberId = process.env.PHONE_NUMBER_ID;      // WhatsApp Business Phone Number ID
+const accessToken = process.env.ACCESS_TOKEN;
 
-// Segédfüggvény üzenetek mentésére
-function saveMessage(message) {
-  let messages = [];
-  if (fs.existsSync(MESSAGES_FILE)) {
-    messages = JSON.parse(fs.readFileSync(MESSAGES_FILE));
-  }
-  messages.push(message);
-  fs.writeFileSync(MESSAGES_FILE, JSON.stringify(messages, null, 2));
-}
+// messages.json fájl elérési útja
+const messagesPath = path.join(__dirname, 'messages.json');
 
-// Webhook GET ellenőrzés
+// GET webhook ellenőrzéshez
 app.get('/', (req, res) => {
   const { 'hub.mode': mode, 'hub.challenge': challenge, 'hub.verify_token': token } = req.query;
 
@@ -33,76 +26,68 @@ app.get('/', (req, res) => {
     console.log('WEBHOOK VERIFIED');
     res.status(200).send(challenge);
   } else {
-    res.status(403).end();
+    res.sendStatus(403);
   }
 });
 
-// Webhook POST - bejövő üzenetek fogadása és mentése
-app.post('/', (req, res) => {
-  const msg = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (msg) {
-    const messageData = {
-      from: msg.from,
-      id: msg.id,
-      timestamp: new Date().toISOString(),
-      text: msg.text?.body || '[Nem szöveges üzenet]'
-    };
-    saveMessage(messageData);
-    console.log('Üzenet mentve:', messageData);
+// POST webhook bejövő üzenetekhez
+app.post('/', async (req, res) => {
+  const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  console.log(`\nWebhook received ${timestamp}\n`);
+  console.log(JSON.stringify(req.body, null, 2));
+
+  // Ellenőrzés, hogy van-e bejövő üzenet
+  const entry = req.body.entry?.[0];
+  const changes = entry?.changes?.[0];
+  const messages = changes?.value?.messages?.[0];
+
+  if (messages) {
+    const from = messages.from; // Feladó telefonszáma
+    const text = messages.text?.body || '[nem szöveges üzenet]';
+
+    // Üzenet mentése JSON fájlba
+    let storedMessages = [];
+    try {
+      if (fs.existsSync(messagesPath)) {
+        storedMessages = JSON.parse(fs.readFileSync(messagesPath, 'utf8'));
+      }
+    } catch (err) {
+      console.error('Hiba a messages.json olvasásakor:', err);
+    }
+
+    const newMessage = { from, text, timestamp, reply: "" };
+    storedMessages.push(newMessage);
+    fs.writeFileSync(messagesPath, JSON.stringify(storedMessages, null, 2), 'utf8');
+    console.log('Üzenet mentve a messages.json fájlba.');
+
+    // Automatikus válasz, ha van beállított válasz
+    if (newMessage.reply && newMessage.reply.trim() !== "") {
+      try {
+        await axios.post(
+          'https://graph.facebook.com/v18.0/YOUR_PHONE_NUMBER_ID/messages',
+          {
+            messaging_product: 'whatsapp',
+            to: from,
+            text: { body: newMessage.reply }
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        console.log('Válasz elküldve:', newMessage.reply);
+      } catch (error) {
+        console.error('Hiba az üzenet küldésekor:', error.response?.data || error.message);
+      }
+    }
   }
+
   res.sendStatus(200);
-});
-
-// Lekérdezhető üzenetek listája JSON-ként
-app.get('/messages', (req, res) => {
-  if (fs.existsSync(MESSAGES_FILE)) {
-    const messages = JSON.parse(fs.readFileSync(MESSAGES_FILE));
-    res.json(messages);
-  } else {
-    res.json([]);
-  }
-});
-
-// Meta API-n keresztül válasz küldése
-async function sendReply(to, message) {
-  if (!whatsappToken || !phoneNumberId) {
-    throw new Error('Hiányzó WhatsApp token vagy Phone Number ID környezeti változó.');
-  }
-
-  const url = `https://graph.facebook.com/v15.0/${phoneNumberId}/messages`;
-
-  const data = {
-    messaging_product: 'whatsapp',
-    to: to,
-    text: {
-      body: message
-    }
-  };
-
-  await axios.post(url, data, {
-    headers: {
-      'Authorization': `Bearer ${whatsappToken}`,
-      'Content-Type': 'application/json'
-    }
-  });
-}
-
-// Válasz küldése POST-tal
-app.post('/reply', async (req, res) => {
-  const { to, message } = req.body;
-  if (!to || !message) {
-    return res.status(400).send('Hiányzik a "to" vagy a "message" a kérésből.');
-  }
-  try {
-    await sendReply(to, message);
-    res.send('Válasz elküldve');
-  } catch (e) {
-    console.error(e);
-    res.status(500).send('Hiba a válasz küldésekor.');
-  }
 });
 
 // Szerver indítása
 app.listen(port, () => {
-  console.log(`Listening on port ${port}`);
+  console.log(`\nListening on port ${port}\n`);
 });
