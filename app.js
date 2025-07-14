@@ -64,7 +64,7 @@ app.post('/', async (req, res) => {
     if (newMessage.reply && newMessage.reply.trim() !== "") {
       try {
         await axios.post(
-          'https://graph.facebook.com/v18.0/YOUR_PHONE_NUMBER_ID/messages',
+          'https://graph.facebook.com/v18.0/675376605666287/messages',
           {
             messaging_product: 'whatsapp',
             to: from,
