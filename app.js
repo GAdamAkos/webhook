@@ -6,34 +6,33 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// === SQLite INIT ===
-const dbPath = path.resolve(__dirname, 'messages.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('SQLite csatlakozási hiba:', err);
-    process.exit(1);
-  } else {
-    console.log('Kapcsolat létrejött az SQLite adatbázissal.');
-  }
-});
+// SQLite adatbázis elérési útja (ugyanebben a mappában)
+const dbPath = path.resolve(__dirname, 'whatsapp_messages.db');
+const db = new sqlite3.Database(dbPath);
 
-// Tábla létrehozása ha nem létezik
-db.run(`
-  CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    direction TEXT NOT NULL,
-    phone TEXT,
-    content TEXT,
-    raw_json TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// Adatbázis tábla létrehozása, ha még nincs
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message TEXT NOT NULL,
+      receivedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => {
+    if (err) {
+      console.error('Hiba az üzenetek tábla létrehozásakor:', err.message);
+    } else {
+      console.log('Messages tábla készen áll');
+    }
+  });
+});
 
 app.use(express.json());
 
-// === Webhook verification ===
+// === WEBHOOK VERIFICATION (Facebook GET kérés) ===
 app.get('/webhook', (req, res) => {
   const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'sajat_verify_token';
+
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
@@ -47,7 +46,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// === Üzenet fogadása (bejövő) ===
+// === WEBHOOK MESSAGE RECEIVER (Facebook POST kérés) ===
 app.post('/webhook', (req, res) => {
   const message = req.body;
 
@@ -55,67 +54,34 @@ app.post('/webhook', (req, res) => {
     return res.status(400).json({ error: 'Üres üzenet' });
   }
 
-  const rawJson = JSON.stringify(message);
-
-  // Esetleg próbáljuk meg kiszedni a telefonszámot és szöveget (ha van)
-  let phone = null;
-  let content = null;
-
-  try {
-    const entry = message.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const msg = changes?.value?.messages?.[0];
-
-    phone = msg?.from || null;
-    content = msg?.text?.body || msg?.button?.text || null;
-  } catch (err) {
-    console.warn("Nem sikerült kibontani az üzenet tartalmát.");
-  }
-
-  db.run(
-      `INSERT INTO messages (direction, phone, content, raw_json) VALUES (?, ?, ?, ?)`,
-      ['incoming', phone, content, rawJson],
-      function (err) {
-        if (err) {
-          console.error('Hiba az SQLite beszúráskor:', err.message);
-          return res.sendStatus(500);
-        }
-        console.log('Bejövő üzenet mentve az SQLite adatbázisba.');
-        res.sendStatus(200);
-      }
-  );
-});
-
-// === Elküldött üzenet rögzítése (opcionálisan a Java kliens hívhat egy endpointot is) ===
-app.post('/sent', (req, res) => {
-  const { phone, content } = req.body;
-
-  if (!phone || !content) {
-    return res.status(400).json({ error: 'Hiányzó mezők' });
-  }
-
-  db.run(
-      `INSERT INTO messages (direction, phone, content, raw_json) VALUES (?, ?, ?, ?)`,
-      ['outgoing', phone, content, JSON.stringify(req.body)],
-      function (err) {
-        if (err) {
-          console.error('Hiba az elküldött üzenet mentésekor:', err.message);
-          return res.sendStatus(500);
-        }
-        console.log('Elküldött üzenet mentve az SQLite adatbázisba.');
-        res.sendStatus(200);
-      }
-  );
-});
-
-// === Összes üzenet lekérése ===
-app.get('/messages', (req, res) => {
-  db.all(`SELECT * FROM messages ORDER BY timestamp DESC`, [], (err, rows) => {
+  // Üzenet beszúrása SQLite táblába
+  const insertQuery = `INSERT INTO messages (message) VALUES (?)`;
+  db.run(insertQuery, [JSON.stringify(message)], function(err) {
     if (err) {
-      console.error('Hiba az adatok lekérésekor:', err.message);
-      return res.sendStatus(500);
+      console.error('Hiba az üzenet mentésekor:', err.message);
+      res.sendStatus(500);
+    } else {
+      console.log(`Üzenet mentve, ID: ${this.lastID}`);
+      res.sendStatus(200);
     }
-    res.json(rows);
+  });
+});
+
+// === ÖSSZES ÜZENET LEKÉRDEZÉSE ===
+app.get('/messages', (req, res) => {
+  db.all(`SELECT * FROM messages ORDER BY receivedAt DESC`, [], (err, rows) => {
+    if (err) {
+      console.error('Hiba az üzenetek lekérdezésekor:', err.message);
+      res.sendStatus(500);
+    } else {
+      // JSON-ból visszaalakítjuk az eredeti objektumokat
+      const messages = rows.map(row => ({
+        id: row.id,
+        message: JSON.parse(row.message),
+        receivedAt: row.receivedAt
+      }));
+      res.json(messages);
+    }
   });
 });
 
