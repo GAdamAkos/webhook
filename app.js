@@ -142,6 +142,6 @@ app.get('/messages', (req, res) => {
 });
 
 // APP INDÍTÁSA
-app.listen(port, () => {
-  console.log(`Szerver fut a http://localhost:${port} címen`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Szerver fut a http://0.0.0.0:${port} címen`);
 });
