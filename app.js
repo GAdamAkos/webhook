@@ -111,7 +111,7 @@ app.post('/webhook', (req, res) => {
             console.error('Üzenet beszúrási hiba:', err);
             return res.sendStatus(500);
           }
-          // Ha van meta adat, ide jöhet (pl. státusz, timestamp), de most egyszerűsítve csak OK
+          // Metaadat kezelést később lehet hozzáadni itt
           console.log(`Üzenet mentve, ID: ${this.lastID}`);
           res.sendStatus(200);
         }
