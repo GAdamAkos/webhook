@@ -66,7 +66,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// Webhook POST handler
+// Webhook POST - üzenet és kontakt mentése
 app.post('/webhook', (req, res) => {
   console.log("📨 Webhook kérés érkezett:", JSON.stringify(req.body, null, 2));
 
@@ -175,15 +175,33 @@ app.post('/webhook', (req, res) => {
   res.sendStatus(200);
 });
 
-// HTML táblázatban: összes üzenet
+// JSON válasz: Összes kontakt
+app.get('/contacts', (req, res) => {
+  const query = `
+    SELECT id AS ID, wa_id AS Phone_number, name AS Name
+    FROM contacts
+    ORDER BY id ASC
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('❌ Hiba a kontaktok lekérdezésekor:', err);
+      return res.sendStatus(500);
+    }
+    res.json(rows);
+  });
+});
+
+// JSON válasz: Összes üzenet
 app.get('/messages', (req, res) => {
   const query = `
-    SELECT messages.id AS message_id,
-           contacts.name AS name,
-           contacts.wa_id AS phone_number,
-           messages.message_body,
-           messages.message_type,
-           datetime(messages.received_at, 'localtime') AS received_at
+    SELECT 
+      messages.id AS ID,
+      contacts.wa_id AS Phone_number,
+      contacts.name AS Name,
+      messages.message_body AS Body,
+      messages.message_type AS Type,
+      datetime(messages.received_at, 'localtime') AS Received_at
     FROM messages
     JOIN contacts ON messages.contact_id = contacts.id
     ORDER BY messages.received_at DESC
@@ -194,84 +212,34 @@ app.get('/messages', (req, res) => {
       console.error('❌ Hiba az üzenetek lekérdezésekor:', err);
       return res.sendStatus(500);
     }
-
-    let html = `
-      <h1>📨 WhatsApp üzenetek</h1>
-      <table border="1" cellspacing="0" cellpadding="5">
-        <thead>
-          <tr>
-            <th>Message ID</th>
-            <th>Name</th>
-            <th>Phone Number</th>
-            <th>Message Body</th>
-            <th>Type</th>
-            <th>Received At</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    rows.forEach(row => {
-      html += `
-        <tr>
-          <td>${row.message_id}</td>
-          <td>${row.name || '—'}</td>
-          <td>${row.phone_number}</td>
-          <td>${row.message_body}</td>
-          <td>${row.message_type}</td>
-          <td>${row.received_at}</td>
-        </tr>
-      `;
-    });
-
-    html += `</tbody></table>`;
-    res.send(html);
+    res.json(rows);
   });
 });
 
-// HTML táblázatban: összes kontakt
-app.get('/contacts', (req, res) => {
+// JSON válasz: Üzenet státusz metaadatok
+app.get('/message-metadata', (req, res) => {
   const query = `
-    SELECT id, wa_id AS phone_number, name AS nickname
-    FROM contacts
+    SELECT 
+      id AS ID,
+      message_id AS Message_ID,
+      status AS Status,
+      timestamp AS Timestamp,
+      error_code AS Error_Code,
+      error_message AS Error_Message
+    FROM message_metadata
     ORDER BY id ASC
   `;
 
   db.all(query, [], (err, rows) => {
     if (err) {
-      console.error('❌ Hiba a kontaktok lekérdezésekor:', err);
+      console.error('❌ Hiba a message_metadata lekérdezésekor:', err);
       return res.sendStatus(500);
     }
-
-    let html = `
-      <h1>📇 WhatsApp Kontaktok</h1>
-      <table border="1" cellspacing="0" cellpadding="5">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Phone Number</th>
-            <th>Nickname</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    rows.forEach(row => {
-      html += `
-        <tr>
-          <td>${row.id}</td>
-          <td>${row.phone_number}</td>
-          <td>${row.nickname || '—'}</td>
-        </tr>
-      `;
-    });
-
-    html += `</tbody></table>`;
-    res.send(html);
+    res.json(rows);
   });
 });
 
-// Adatbázis letöltés
+// Adatbázis fájl letöltése
 app.get('/download-db', (req, res) => {
   fs.access(dbPath, fs.constants.F_OK, (err) => {
     if (err) {
@@ -289,6 +257,7 @@ app.get('/download-db', (req, res) => {
   });
 });
 
+// Szerver indítása
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Szerver fut a http://0.0.0.0:${port} címen`);
 });
