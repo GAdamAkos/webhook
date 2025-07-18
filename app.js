@@ -82,15 +82,31 @@ app.post('/webhook', (req, res) => {
 
   // Név és wa_id mentése vagy frissítése a contacts táblába
   if (wa_id) {
-    db.run(
-      `INSERT INTO contacts (wa_id, name)
-       VALUES (?, ?)
-       ON CONFLICT(wa_id) DO UPDATE SET name = excluded.name`,
-      [wa_id, name],
-      (err) => {
-        if (err) console.error("❌ DB hiba (contacts):", err);
-      }
-    );
+    if (name) {
+      // Ha van név, beszúrjuk vagy frissítjük
+      db.run(
+        `INSERT INTO contacts (wa_id, name)
+         VALUES (?, ?)
+         ON CONFLICT(wa_id) DO UPDATE SET name = excluded.name`,
+        [wa_id, name],
+        (err) => {
+          if (err) console.error("❌ DB hiba (contacts - névvel):", err);
+        }
+      );
+    } else {
+      // Ha nincs név, csak beszúrjuk, ha még nincs benne
+      db.run(
+        `INSERT INTO contacts (wa_id)
+         VALUES (?)
+         ON CONFLICT(wa_id) DO NOTHING`,
+        [wa_id],
+        (err) => {
+          if (err) console.error("❌ DB hiba (contacts - név nélkül):", err);
+        }
+      );
+
+      console.warn(`⚠️ Név nem érkezett a webhook üzenetben (wa_id: ${wa_id})`);
+    }
   }
 
   // Üzenetek mentése
@@ -100,7 +116,7 @@ app.post('/webhook', (req, res) => {
     const messageBody = message.text?.body || '';
     const messageType = message.type;
     const timestamp = new Date().toISOString();
-    const wa_message_id = message.id; // WhatsApp üzenet azonosító
+    const wa_message_id = message.id;
 
     // Kapcsolódó kontakt lekérdezése
     db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, row) => {
@@ -137,7 +153,6 @@ app.post('/webhook', (req, res) => {
       const error_code = error?.code || null;
       const error_message = error?.message || null;
 
-      // Megkeressük a messages táblában a local message id-t a wa_message_id alapján
       db.get(
         'SELECT id FROM messages WHERE wa_message_id = ?',
         [wa_message_id],
