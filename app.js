@@ -48,7 +48,7 @@ app.use(express.json());
 
 // WEBHOOK VERIFICATION (GET)
 app.get('/webhook', (req, res) => {
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'sajat_verify_token';
+  const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'webhooktoken';
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
