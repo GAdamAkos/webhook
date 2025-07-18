@@ -7,11 +7,13 @@ const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Adatbázis elérési útvonal logolása
 const dbPath = path.resolve(__dirname, 'whatsapp_messages.db');
 console.log('📂 Adatbázis fájl helye:', dbPath);
 
 const db = new sqlite3.Database(dbPath);
 
+// Táblák létrehozása, ha még nincsenek
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS contacts (
@@ -50,7 +52,7 @@ db.serialize(() => {
 
 app.use(express.json());
 
-// Webhook verifikáció
+// WEBHOOK VERIFICATION (GET)
 app.get('/webhook', (req, res) => {
   const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'webhooktoken';
   const mode = req.query['hub.mode'];
@@ -66,7 +68,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// Webhook POST handler
+// WEBHOOK MESSAGE RECEIVER (POST)
 app.post('/webhook', (req, res) => {
   console.log("📨 Webhook kérés érkezett:", JSON.stringify(req.body, null, 2));
 
@@ -78,8 +80,10 @@ app.post('/webhook', (req, res) => {
   const wa_id = contactsData?.wa_id || null;
   const name = contactsData?.profile?.name || null;
 
+  // Név és wa_id mentése vagy frissítése a contacts táblába
   if (wa_id) {
     if (name) {
+      // Ha van név, beszúrjuk vagy frissítjük
       db.run(
         `INSERT INTO contacts (wa_id, name)
          VALUES (?, ?)
@@ -90,6 +94,7 @@ app.post('/webhook', (req, res) => {
         }
       );
     } else {
+      // Ha nincs név, csak beszúrjuk, ha még nincs benne
       db.run(
         `INSERT INTO contacts (wa_id)
          VALUES (?)
@@ -99,10 +104,12 @@ app.post('/webhook', (req, res) => {
           if (err) console.error("❌ DB hiba (contacts - név nélkül):", err);
         }
       );
+
       console.warn(`⚠️ Név nem érkezett a webhook üzenetben (wa_id: ${wa_id})`);
     }
   }
 
+  // Üzenetek mentése
   const messages = value?.messages;
   if (messages) {
     const message = messages[0];
@@ -111,6 +118,7 @@ app.post('/webhook', (req, res) => {
     const timestamp = new Date().toISOString();
     const wa_message_id = message.id;
 
+    // Kapcsolódó kontakt lekérdezése
     db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, row) => {
       if (err || !row) {
         console.error('❌ Nem található a kontakt az adatbázisban:', err);
@@ -134,6 +142,7 @@ app.post('/webhook', (req, res) => {
     });
   }
 
+  // Status üzenetek mentése
   const statuses = value?.statuses;
   if (statuses) {
     statuses.forEach(status => {
@@ -175,103 +184,24 @@ app.post('/webhook', (req, res) => {
   res.sendStatus(200);
 });
 
-// HTML táblázatban: összes üzenet
+// ÖSSZES ÜZENET LEKÉRDEZÉSE
 app.get('/messages', (req, res) => {
   const query = `
-    SELECT messages.id AS message_id,
-           contacts.name AS name,
-           contacts.wa_id AS phone_number,
-           messages.message_body,
-           messages.message_type,
-           datetime(messages.received_at, 'localtime') AS received_at
+    SELECT messages.id, contacts.wa_id, contacts.name, messages.message_body, messages.message_type, messages.received_at
     FROM messages
     JOIN contacts ON messages.contact_id = contacts.id
     ORDER BY messages.received_at DESC
   `;
-
   db.all(query, [], (err, rows) => {
     if (err) {
       console.error('❌ Hiba az üzenetek lekérdezésekor:', err);
       return res.sendStatus(500);
     }
-
-    let html = `
-      <h1>📨 WhatsApp üzenetek</h1>
-      <table border="1" cellspacing="0" cellpadding="5">
-        <thead>
-          <tr>
-            <th>Message ID</th>
-            <th>Name</th>
-            <th>Phone Number</th>
-            <th>Message Body</th>
-            <th>Type</th>
-            <th>Received At</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    rows.forEach(row => {
-      html += `
-        <tr>
-          <td>${row.message_id}</td>
-          <td>${row.name || '—'}</td>
-          <td>${row.phone_number}</td>
-          <td>${row.message_body}</td>
-          <td>${row.message_type}</td>
-          <td>${row.received_at}</td>
-        </tr>
-      `;
-    });
-
-    html += `</tbody></table>`;
-    res.send(html);
+    res.json(rows);
   });
 });
 
-// HTML táblázatban: összes kontakt
-app.get('/contacts', (req, res) => {
-  const query = `
-    SELECT id, wa_id AS phone_number, name AS nickname
-    FROM contacts
-    ORDER BY id ASC
-  `;
-
-  db.all(query, [], (err, rows) => {
-    if (err) {
-      console.error('❌ Hiba a kontaktok lekérdezésekor:', err);
-      return res.sendStatus(500);
-    }
-
-    let html = `
-      <h1>📇 WhatsApp Kontaktok</h1>
-      <table border="1" cellspacing="0" cellpadding="5">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Phone Number</th>
-            <th>Nickname</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    rows.forEach(row => {
-      html += `
-        <tr>
-          <td>${row.id}</td>
-          <td>${row.phone_number}</td>
-          <td>${row.nickname || '—'}</td>
-        </tr>
-      `;
-    });
-
-    html += `</tbody></table>`;
-    res.send(html);
-  });
-});
-
-// Adatbázis letöltés
+// ADATBÁZIS LETÖLTÉSE
 app.get('/download-db', (req, res) => {
   fs.access(dbPath, fs.constants.F_OK, (err) => {
     if (err) {
@@ -289,6 +219,7 @@ app.get('/download-db', (req, res) => {
   });
 });
 
+// APP INDÍTÁSA
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Szerver fut a http://0.0.0.0:${port} címen`);
 });
