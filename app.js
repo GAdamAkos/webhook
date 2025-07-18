@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -121,6 +122,7 @@ app.post('/webhook', (req, res) => {
     res.sendStatus(400);
   }
 });
+
 // ÖSSZES ÜZENET LEKÉRDEZÉSE
 app.get('/messages', (req, res) => {
   const query = `
@@ -135,6 +137,26 @@ app.get('/messages', (req, res) => {
       return res.sendStatus(500);
     }
     res.json(rows);
+  });
+});
+
+// ✅ ADATBÁZIS LETÖLTÉSE (Renderről saját gépre)
+app.get('/download-db', (req, res) => {
+  const filePath = dbPath;
+
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.error('Az adatbázis fájl nem található.');
+      return res.status(404).send('Fájl nem található.');
+    }
+
+    res.download(filePath, 'whatsapp_messages.db', (err) => {
+      if (err) {
+        console.error('Hiba a fájl letöltésénél:', err);
+      } else {
+        console.log('✅ Adatbázis fájl sikeresen letöltve.');
+      }
+    });
   });
 });
 
