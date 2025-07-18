@@ -35,14 +35,17 @@ db.serialize(() => {
   `);
 
   db.run(`
+    DROP TABLE IF EXISTS message_metadata;
+
     CREATE TABLE IF NOT EXISTS message_metadata (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       message_id INTEGER,
       status TEXT,
-      timestamp DATETIME,
+      timestamp TEXT,
+      error_code INTEGER,
+      error_message TEXT,
       FOREIGN KEY(message_id) REFERENCES messages(id)
-    )
-  `);
+    );
 
   console.log('✅ Adatbázis táblák készen állnak');
 });
@@ -73,60 +76,86 @@ app.post('/webhook', (req, res) => {
   const changes = entry?.changes?.[0];
   const value = changes?.value;
 
-  // 1️⃣ Üzenet fogadása
+  const contactsData = value?.contacts?.[0];
+  const wa_id = contactsData?.wa_id || null;
+  const name = contactsData?.profile?.name || null;
+
+  // ✅ Contacts mentés vagy frissítés
+  if (wa_id) {
+    db.run(
+      `INSERT INTO contacts (wa_id, name)
+       VALUES (?, ?)
+       ON CONFLICT(wa_id) DO UPDATE SET name = excluded.name`,
+      [wa_id, name],
+      (err) => {
+        if (err) console.error("❌ DB hiba (contacts):", err);
+      }
+    );
+  }
+
+  // 📩 Üzenetek mentése
   const messages = value?.messages;
   if (messages) {
-    const contact = value.contacts?.[0];
-    const profileName = contact?.profile?.name || null;
-    const wa_id = contact?.wa_id;
-
-    // 📌 Kontakt mentése (név frissítése, ha van)
-    db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, row) => {
-      if (err) return console.error('DB hiba (contacts):', err);
-      if (row) {
-        db.run('UPDATE contacts SET name = ? WHERE id = ?', [profileName, row.id]);
-      } else {
-        db.run('INSERT INTO contacts (wa_id, name) VALUES (?, ?)', [wa_id, profileName]);
-      }
-    });
-
-    // 📌 Üzenet mentése
     const message = messages[0];
-    const messageBody = message.text?.body;
+    const messageBody = message.text?.body || '';
     const messageType = message.type;
     const timestamp = new Date().toISOString();
+    const message_id = message.id; // WhatsApp ID
 
-    db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, contactRow) => {
-      if (contactRow) {
-        db.run(
-          'INSERT INTO messages (contact_id, message_body, message_type, received_at) VALUES (?, ?, ?, ?)',
-          [contactRow.id, messageBody, messageType, timestamp],
-          function (err) {
-            if (err) return console.error('❌ DB hiba (messages):', err);
+    // 📌 Kapcsolódó kontakt lekérdezése
+    db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, row) => {
+      if (err || !row) {
+        console.error('❌ Nem található a kontakt az adatbázisban:', err);
+        return;
+      }
+
+      const contact_id = row.id;
+
+      db.run(
+        `INSERT INTO messages (contact_id, message_body, message_type, received_at)
+         VALUES (?, ?, ?, ?)`,
+        [contact_id, messageBody, messageType, timestamp],
+        function (err) {
+          if (err) {
+            console.error('❌ DB hiba (messages):', err);
+          } else {
             console.log('✅ Üzenet mentve, ID:', this.lastID);
           }
-        );
-      }
+        }
+      );
     });
   }
 
-  // 2️⃣ Status típusú webhook esemény mentése
+  // 📦 Status üzenetek mentése
   const statuses = value?.statuses;
   if (statuses) {
     statuses.forEach(status => {
-      const message_id = status.id;
+      const wa_message_id = status.id;
       const statusValue = status.status;
       const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
       const error = status.errors?.[0];
       const error_code = error?.code || null;
       const error_message = error?.message || null;
 
-      db.run(
-        'INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message) VALUES (?, ?, ?, ?, ?)',
-        [message_id, statusValue, timestamp, error_code, error_message],
-        function (err) {
-          if (err) return console.error('❌ DB hiba (statuses):', err);
-          console.log('✅ Státusz mentve:', message_id, statusValue);
+      // Lekérdezzük a saját message.id-t a messages táblából a wa_message_id alapján
+      db.get(
+        `SELECT id FROM messages WHERE message_body IS NOT NULL AND LENGTH(message_body) > 0 ORDER BY id DESC LIMIT 1`,
+        [],
+        (err, msgRow) => {
+          const localMessageId = msgRow?.id || null;
+
+          db.run(
+            `INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message)
+             VALUES (?, ?, ?, ?, ?)`,
+            [localMessageId, statusValue, timestamp, error_code, error_message],
+            function (err) {
+              if (err) {
+                console.error('❌ DB hiba (statuses):', err);
+              } else {
+                console.log(`✅ Status mentve: ${statusValue} (msg_id=${localMessageId})`);
+              }
+            }
+          );
         }
       );
     });
