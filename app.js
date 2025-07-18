@@ -67,64 +67,72 @@ app.get('/webhook', (req, res) => {
 
 // WEBHOOK MESSAGE RECEIVER (POST)
 app.post('/webhook', (req, res) => {
-  console.log('📨 Webhook kérés érkezett:', JSON.stringify(req.body, null, 2));
+  console.log("📨 Webhook kérés érkezett:", JSON.stringify(req.body, null, 2));
 
-  try {
-    const body = req.body;
-    const entry = body.entry && body.entry[0];
-    const changes = entry && entry.changes && entry.changes[0];
-    const value = changes && changes.value;
-    const messages = value && value.messages;
+  const entry = req.body.entry?.[0];
+  const changes = entry?.changes?.[0];
+  const value = changes?.value;
 
-    if (!messages || messages.length === 0) {
-      console.log('⚠️ Nincs új üzenet.');
-      return res.sendStatus(200);
-    }
+  // 1️⃣ Üzenet fogadása
+  const messages = value?.messages;
+  if (messages) {
+    const contact = value.contacts?.[0];
+    const profileName = contact?.profile?.name || null;
+    const wa_id = contact?.wa_id;
 
-    const message = messages[0];
-    const from = message.from;
-    const messageBody = message.text?.body || '';
-    const messageType = message.type || 'unknown';
-
-    // Kontakt keresése vagy létrehozása
-    db.get(`SELECT id FROM contacts WHERE wa_id = ?`, [from], (err, row) => {
-      if (err) {
-        console.error('❌ Kontakt lekérdezési hiba:', err);
-        return res.sendStatus(500);
-      }
-
+    // 📌 Kontakt mentése (név frissítése, ha van)
+    db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, row) => {
+      if (err) return console.error('DB hiba (contacts):', err);
       if (row) {
-        saveMessage(row.id);
+        db.run('UPDATE contacts SET name = ? WHERE id = ?', [profileName, row.id]);
       } else {
-        db.run(`INSERT INTO contacts (wa_id) VALUES (?)`, [from], function(err) {
-          if (err) {
-            console.error('❌ Kontakt beszúrási hiba:', err);
-            return res.sendStatus(500);
-          }
-          console.log(`👤 Új kontakt mentve (ID: ${this.lastID})`);
-          saveMessage(this.lastID);
-        });
+        db.run('INSERT INTO contacts (wa_id, name) VALUES (?, ?)', [wa_id, profileName]);
       }
     });
 
-    function saveMessage(contactId) {
-      db.run(
-        `INSERT INTO messages (contact_id, message_body, message_type) VALUES (?, ?, ?)`,
-        [contactId, messageBody, messageType],
-        function(err) {
-          if (err) {
-            console.error('❌ Üzenet beszúrási hiba:', err);
-            return res.sendStatus(500);
+    // 📌 Üzenet mentése
+    const message = messages[0];
+    const messageBody = message.text?.body;
+    const messageType = message.type;
+    const timestamp = new Date().toISOString();
+
+    db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, contactRow) => {
+      if (contactRow) {
+        db.run(
+          'INSERT INTO messages (contact_id, message_body, message_type, received_at) VALUES (?, ?, ?, ?)',
+          [contactRow.id, messageBody, messageType, timestamp],
+          function (err) {
+            if (err) return console.error('❌ DB hiba (messages):', err);
+            console.log('✅ Üzenet mentve, ID:', this.lastID);
           }
-          console.log(`✅ Üzenet elmentve. Üzenet ID: ${this.lastID}, Kontakt ID: ${contactId}, Szöveg: "${messageBody}"`);
-          res.sendStatus(200);
+        );
+      }
+    });
+  }
+
+  // 2️⃣ Status típusú webhook esemény mentése
+  const statuses = value?.statuses;
+  if (statuses) {
+    statuses.forEach(status => {
+      const message_id = status.id;
+      const statusValue = status.status;
+      const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
+      const error = status.errors?.[0];
+      const error_code = error?.code || null;
+      const error_message = error?.message || null;
+
+      db.run(
+        'INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message) VALUES (?, ?, ?, ?, ?)',
+        [message_id, statusValue, timestamp, error_code, error_message],
+        function (err) {
+          if (err) return console.error('❌ DB hiba (statuses):', err);
+          console.log('✅ Státusz mentve:', message_id, statusValue);
         }
       );
-    }
-  } catch (e) {
-    console.error('❌ Webhook feldolgozási hiba:', e);
-    res.sendStatus(400);
+    });
   }
+
+  res.sendStatus(200);
 });
 
 // ÖSSZES ÜZENET LEKÉRDEZÉSE
