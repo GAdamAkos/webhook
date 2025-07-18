@@ -7,8 +7,10 @@ const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// SQLite adatbázis elérési útja
+// ✅ Adatbázis elérési útvonal logolása
 const dbPath = path.resolve(__dirname, 'whatsapp_messages.db');
+console.log('📂 Adatbázis fájl helye:', dbPath);
+
 const db = new sqlite3.Database(dbPath);
 
 // Táblák létrehozása, ha még nincsenek
@@ -42,7 +44,7 @@ db.serialize(() => {
     )
   `);
 
-  console.log('Adatbázis táblák készen állnak');
+  console.log('✅ Adatbázis táblák készen állnak');
 });
 
 app.use(express.json());
@@ -55,17 +57,17 @@ app.get('/webhook', (req, res) => {
   const challenge = req.query['hub.challenge'];
 
   if (mode && token === VERIFY_TOKEN) {
-    console.log('Webhook verifikálva!');
+    console.log('🔐 Webhook verifikálva!');
     res.status(200).send(challenge);
   } else {
-    console.log('Webhook verifikáció sikertelen');
+    console.log('❌ Webhook verifikáció sikertelen');
     res.sendStatus(403);
   }
 });
 
 // WEBHOOK MESSAGE RECEIVER (POST)
 app.post('/webhook', (req, res) => {
-  console.log('Webhook kérés érkezett:', JSON.stringify(req.body, null, 2));
+  console.log('📨 Webhook kérés érkezett:', JSON.stringify(req.body, null, 2));
 
   try {
     const body = req.body;
@@ -75,7 +77,8 @@ app.post('/webhook', (req, res) => {
     const messages = value && value.messages;
 
     if (!messages || messages.length === 0) {
-      return res.sendStatus(200); // nincs új üzenet
+      console.log('⚠️ Nincs új üzenet.');
+      return res.sendStatus(200);
     }
 
     const message = messages[0];
@@ -86,7 +89,7 @@ app.post('/webhook', (req, res) => {
     // Kontakt keresése vagy létrehozása
     db.get(`SELECT id FROM contacts WHERE wa_id = ?`, [from], (err, row) => {
       if (err) {
-        console.error('Kontakt lekérdezési hiba:', err);
+        console.error('❌ Kontakt lekérdezési hiba:', err);
         return res.sendStatus(500);
       }
 
@@ -95,9 +98,10 @@ app.post('/webhook', (req, res) => {
       } else {
         db.run(`INSERT INTO contacts (wa_id) VALUES (?)`, [from], function(err) {
           if (err) {
-            console.error('Kontakt beszúrási hiba:', err);
+            console.error('❌ Kontakt beszúrási hiba:', err);
             return res.sendStatus(500);
           }
+          console.log(`👤 Új kontakt mentve (ID: ${this.lastID})`);
           saveMessage(this.lastID);
         });
       }
@@ -109,16 +113,16 @@ app.post('/webhook', (req, res) => {
         [contactId, messageBody, messageType],
         function(err) {
           if (err) {
-            console.error('Üzenet beszúrási hiba:', err);
+            console.error('❌ Üzenet beszúrási hiba:', err);
             return res.sendStatus(500);
           }
-          console.log(`✅ Üzenet elmentve, ID: ${this.lastID}`);
+          console.log(`✅ Üzenet elmentve. Üzenet ID: ${this.lastID}, Kontakt ID: ${contactId}, Szöveg: "${messageBody}"`);
           res.sendStatus(200);
         }
       );
     }
   } catch (e) {
-    console.error('Webhook feldolgozási hiba:', e);
+    console.error('❌ Webhook feldolgozási hiba:', e);
     res.sendStatus(400);
   }
 });
@@ -133,26 +137,26 @@ app.get('/messages', (req, res) => {
   `;
   db.all(query, [], (err, rows) => {
     if (err) {
-      console.error('Hiba az üzenetek lekérdezésekor:', err);
+      console.error('❌ Hiba az üzenetek lekérdezésekor:', err);
       return res.sendStatus(500);
     }
     res.json(rows);
   });
 });
 
-// ✅ ADATBÁZIS LETÖLTÉSE (Renderről saját gépre)
+// ✅ ADATBÁZIS LETÖLTÉSE
 app.get('/download-db', (req, res) => {
   const filePath = dbPath;
 
   fs.access(filePath, fs.constants.F_OK, (err) => {
     if (err) {
-      console.error('Az adatbázis fájl nem található.');
+      console.error('❌ Az adatbázis fájl nem található.');
       return res.status(404).send('Fájl nem található.');
     }
 
     res.download(filePath, 'whatsapp_messages.db', (err) => {
       if (err) {
-        console.error('Hiba a fájl letöltésénél:', err);
+        console.error('❌ Hiba a fájl letöltésénél:', err);
       } else {
         console.log('✅ Adatbázis fájl sikeresen letöltve.');
       }
@@ -162,5 +166,5 @@ app.get('/download-db', (req, res) => {
 
 // APP INDÍTÁSA
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Szerver fut a http://0.0.0.0:${port} címen`);
+  console.log(`🚀 Szerver fut a http://0.0.0.0:${port} címen`);
 });
