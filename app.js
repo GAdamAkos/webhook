@@ -7,7 +7,7 @@ const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ✅ Adatbázis elérési útvonal logolása
+// Adatbázis elérési útvonal logolása
 const dbPath = path.resolve(__dirname, 'whatsapp_messages.db');
 console.log('📂 Adatbázis fájl helye:', dbPath);
 
@@ -30,13 +30,12 @@ db.serialize(() => {
       message_body TEXT,
       message_type TEXT,
       received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      wa_message_id TEXT UNIQUE,
       FOREIGN KEY(contact_id) REFERENCES contacts(id)
     )
   `);
 
   db.run(`
-    DROP TABLE IF EXISTS message_metadata;
-
     CREATE TABLE IF NOT EXISTS message_metadata (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       message_id INTEGER,
@@ -45,7 +44,8 @@ db.serialize(() => {
       error_code INTEGER,
       error_message TEXT,
       FOREIGN KEY(message_id) REFERENCES messages(id)
-    );
+    )
+  `);
 
   console.log('✅ Adatbázis táblák készen állnak');
 });
@@ -80,7 +80,7 @@ app.post('/webhook', (req, res) => {
   const wa_id = contactsData?.wa_id || null;
   const name = contactsData?.profile?.name || null;
 
-  // ✅ Contacts mentés vagy frissítés
+  // Név és wa_id mentése vagy frissítése a contacts táblába
   if (wa_id) {
     db.run(
       `INSERT INTO contacts (wa_id, name)
@@ -93,16 +93,16 @@ app.post('/webhook', (req, res) => {
     );
   }
 
-  // 📩 Üzenetek mentése
+  // Üzenetek mentése
   const messages = value?.messages;
   if (messages) {
     const message = messages[0];
     const messageBody = message.text?.body || '';
     const messageType = message.type;
     const timestamp = new Date().toISOString();
-    const message_id = message.id; // WhatsApp ID
+    const wa_message_id = message.id; // WhatsApp üzenet azonosító
 
-    // 📌 Kapcsolódó kontakt lekérdezése
+    // Kapcsolódó kontakt lekérdezése
     db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, row) => {
       if (err || !row) {
         console.error('❌ Nem található a kontakt az adatbázisban:', err);
@@ -112,9 +112,9 @@ app.post('/webhook', (req, res) => {
       const contact_id = row.id;
 
       db.run(
-        `INSERT INTO messages (contact_id, message_body, message_type, received_at)
-         VALUES (?, ?, ?, ?)`,
-        [contact_id, messageBody, messageType, timestamp],
+        `INSERT INTO messages (contact_id, message_body, message_type, received_at, wa_message_id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [contact_id, messageBody, messageType, timestamp, wa_message_id],
         function (err) {
           if (err) {
             console.error('❌ DB hiba (messages):', err);
@@ -126,7 +126,7 @@ app.post('/webhook', (req, res) => {
     });
   }
 
-  // 📦 Status üzenetek mentése
+  // Status üzenetek mentése
   const statuses = value?.statuses;
   if (statuses) {
     statuses.forEach(status => {
@@ -137,12 +137,17 @@ app.post('/webhook', (req, res) => {
       const error_code = error?.code || null;
       const error_message = error?.message || null;
 
-      // Lekérdezzük a saját message.id-t a messages táblából a wa_message_id alapján
+      // Megkeressük a messages táblában a local message id-t a wa_message_id alapján
       db.get(
-        `SELECT id FROM messages WHERE message_body IS NOT NULL AND LENGTH(message_body) > 0 ORDER BY id DESC LIMIT 1`,
-        [],
+        'SELECT id FROM messages WHERE wa_message_id = ?',
+        [wa_message_id],
         (err, msgRow) => {
           const localMessageId = msgRow?.id || null;
+
+          if (!localMessageId) {
+            console.warn(`⚠️ Nem található üzenet a message_metadata számára (wa_message_id: ${wa_message_id})`);
+            return;
+          }
 
           db.run(
             `INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message)
@@ -150,7 +155,7 @@ app.post('/webhook', (req, res) => {
             [localMessageId, statusValue, timestamp, error_code, error_message],
             function (err) {
               if (err) {
-                console.error('❌ DB hiba (statuses):', err);
+                console.error('❌ DB hiba (message_metadata):', err);
               } else {
                 console.log(`✅ Status mentve: ${statusValue} (msg_id=${localMessageId})`);
               }
@@ -167,7 +172,7 @@ app.post('/webhook', (req, res) => {
 // ÖSSZES ÜZENET LEKÉRDEZÉSE
 app.get('/messages', (req, res) => {
   const query = `
-    SELECT messages.id, contacts.wa_id, messages.message_body, messages.message_type, messages.received_at
+    SELECT messages.id, contacts.wa_id, contacts.name, messages.message_body, messages.message_type, messages.received_at
     FROM messages
     JOIN contacts ON messages.contact_id = contacts.id
     ORDER BY messages.received_at DESC
@@ -181,17 +186,15 @@ app.get('/messages', (req, res) => {
   });
 });
 
-// ✅ ADATBÁZIS LETÖLTÉSE
+// ADATBÁZIS LETÖLTÉSE
 app.get('/download-db', (req, res) => {
-  const filePath = dbPath;
-
-  fs.access(filePath, fs.constants.F_OK, (err) => {
+  fs.access(dbPath, fs.constants.F_OK, (err) => {
     if (err) {
       console.error('❌ Az adatbázis fájl nem található.');
       return res.status(404).send('Fájl nem található.');
     }
 
-    res.download(filePath, 'whatsapp_messages.db', (err) => {
+    res.download(dbPath, 'whatsapp_messages.db', (err) => {
       if (err) {
         console.error('❌ Hiba a fájl letöltésénél:', err);
       } else {
