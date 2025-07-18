@@ -1,15 +1,49 @@
 require('dotenv').config();
 const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// JSON fájl elérési útja
-const messagesFilePath = path.resolve(__dirname, 'messages.json');
+// SQLite adatbázis elérési útja
+const dbPath = path.resolve(__dirname, 'whatsapp_messages.db');
+const db = new sqlite3.Database(dbPath);
 
-// Köztes réteg a JSON feldolgozáshoz
+// Táblák létrehozása, ha még nincsenek
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS contacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      wa_id TEXT UNIQUE,
+      name TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id INTEGER,
+      message_body TEXT,
+      message_type TEXT,
+      received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(contact_id) REFERENCES contacts(id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS message_metadata (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id INTEGER,
+      status TEXT,
+      timestamp DATETIME,
+      FOREIGN KEY(message_id) REFERENCES messages(id)
+    )
+  `);
+
+  console.log('Adatbázis táblák készen állnak');
+});
+
 app.use(express.json());
 
 // WEBHOOK VERIFICATION (GET)
@@ -40,6 +74,7 @@ app.post('/webhook', (req, res) => {
     const messages = value && value.messages;
 
     if (!messages || messages.length === 0) {
+      // nincs új üzenet, 200 OK vissza
       return res.sendStatus(200);
     }
 
@@ -47,43 +82,63 @@ app.post('/webhook', (req, res) => {
     const from = message.from;
     const messageBody = message.text?.body || '';
     const messageType = message.type || 'unknown';
-    const receivedAt = new Date().toISOString();
 
-    const newMessage = {
-      from,
-      messageBody,
-      messageType,
-      receivedAt
-    };
+    // Kontakt keresése vagy létrehozása
+    db.get(`SELECT id FROM contacts WHERE wa_id = ?`, [from], (err, row) => {
+      if (err) {
+        console.error('Kontakt lekérdezési hiba:', err);
+        return res.sendStatus(500);
+      }
 
-    // Régi üzenetek beolvasása, ha van már fájl
-    let existingMessages = [];
-    if (fs.existsSync(messagesFilePath)) {
-      const raw = fs.readFileSync(messagesFilePath);
-      existingMessages = JSON.parse(raw);
+      if (row) {
+        // Kontakt létezik, üzenet mentése
+        saveMessage(row.id);
+      } else {
+        // Új kontakt beszúrása
+        db.run(`INSERT INTO contacts (wa_id) VALUES (?)`, [from], function(err) {
+          if (err) {
+            console.error('Kontakt beszúrási hiba:', err);
+            return res.sendStatus(500);
+          }
+          saveMessage(this.lastID);
+        });
+      }
+    });
+
+    function saveMessage(contactId) {
+      db.run(
+        `INSERT INTO messages (contact_id, message_body, message_type) VALUES (?, ?, ?)`,
+        [contactId, messageBody, messageType],
+        function(err) {
+          if (err) {
+            console.error('Üzenet beszúrási hiba:', err);
+            return res.sendStatus(500);
+          }
+          console.log(`Üzenet mentve, ID: ${this.lastID}`);
+          res.sendStatus(200);
+        }
+      );
     }
-
-    // Új üzenet hozzáadása és fájlba írás
-    existingMessages.push(newMessage);
-    fs.writeFileSync(messagesFilePath, JSON.stringify(existingMessages, null, 2));
-
-    console.log('Üzenet mentve a JSON fájlba');
-    res.sendStatus(200);
   } catch (e) {
     console.error('Webhook feldolgozási hiba:', e);
     res.sendStatus(400);
   }
 });
-
-// MENTETT ÜZENETEK MEGJELENÍTÉSE
+// ÖSSZES ÜZENET LEKÉRDEZÉSE
 app.get('/messages', (req, res) => {
-  if (fs.existsSync(messagesFilePath)) {
-    const data = fs.readFileSync(messagesFilePath);
-    res.setHeader('Content-Type', 'application/json');
-    res.send(data);
-  } else {
-    res.send('[]');
-  }
+  const query = `
+    SELECT messages.id, contacts.wa_id, messages.message_body, messages.message_type, messages.received_at
+    FROM messages
+    JOIN contacts ON messages.contact_id = contacts.id
+    ORDER BY messages.received_at DESC
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Hiba az üzenetek lekérdezésekor:', err);
+      return res.sendStatus(500);
+    }
+    res.json(rows);
+  });
 });
 
 // APP INDÍTÁSA
