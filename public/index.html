@@ -87,6 +87,10 @@
       font-size: 1rem;
     }
 
+    input[type="file"] {
+      padding: 0.4rem;
+    }
+
     button {
       width: 100%;
       padding: 0.75rem;
@@ -168,6 +172,9 @@
     <label for="message">Egyedi üzenet:</label>
     <textarea id="message" rows="4" placeholder="Írd be az üzenetet..."></textarea>
 
+    <label for="file">Fájl vagy kép csatolása:</label>
+    <input type="file" id="file" accept="image/*,application/pdf" />
+
     <button id="sendBtn">Üzenet küldése</button>
 
     <div id="status"></div>
@@ -184,7 +191,6 @@
     const templateSelect = document.getElementById('template');
     const historyList = document.getElementById('historyList');
 
-    // Téma váltás
     function toggleTheme() {
       const current = document.body.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
@@ -192,7 +198,6 @@
       localStorage.setItem('theme', next);
     }
 
-    // Alap téma beállítás
     document.addEventListener('DOMContentLoaded', () => {
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme) {
@@ -200,7 +205,6 @@
       }
     });
 
-    // Sablon kiválasztás → beírja az üzenet mezőbe
     templateSelect.addEventListener('change', () => {
       const msgBox = document.getElementById('message');
       if (!msgBox.value.trim()) {
@@ -208,14 +212,14 @@
       }
     });
 
-    // Üzenet küldése
     sendBtn.addEventListener('click', () => {
       const name = document.getElementById('name').value.trim();
       const phone = document.getElementById('phone').value.trim();
       const message = document.getElementById('message').value.trim();
+      const fileInput = document.getElementById('file');
 
-      if (!phone || !message) {
-        statusDiv.textContent = '📛 Kérlek, tölts ki minden szükséges mezőt!';
+      if (!phone || (!message && fileInput.files.length === 0)) {
+        statusDiv.textContent = '📛 Kérlek, tölts ki minden szükséges mezőt vagy adj meg fájlt!';
         statusDiv.style.color = 'crimson';
         return;
       }
@@ -225,22 +229,31 @@
       statusDiv.textContent = '📤 Üzenet küldése folyamatban...';
       statusDiv.style.color = '#777';
 
-      fetch('/send-message', {
+      const formData = new FormData();
+      formData.append('phone', phone);
+      formData.append('message', fullMessage);
+
+      if (fileInput.files.length > 0) {
+        formData.append('file', fileInput.files[0]);
+      }
+
+      const endpoint = fileInput.files.length > 0 ? '/send-file-message' : '/send-message';
+
+      fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, message: fullMessage }),
+        body: formData,
       })
-      .then(res => res.json())
-      .then(data => {
-        statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
-        statusDiv.style.color = 'green';
-        updateHistory(phone, fullMessage);
-      })
-      .catch(err => {
-        console.error(err);
-        statusDiv.textContent = '❌ Hiba történt az üzenetküldés során.';
-        statusDiv.style.color = 'crimson';
-      });
+        .then(res => res.json())
+        .then(data => {
+          statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
+          statusDiv.style.color = 'green';
+          updateHistory(phone, fullMessage + (fileInput.files.length > 0 ? ' 📎 [fájl]' : ''));
+        })
+        .catch(err => {
+          console.error(err);
+          statusDiv.textContent = '❌ Hiba történt az üzenetküldés során.';
+          statusDiv.style.color = 'crimson';
+        });
     });
 
     function updateHistory(phone, message) {
