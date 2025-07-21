@@ -220,7 +220,7 @@
         return;
       }
 
-      const fullMessage = name ? `${name}: ${message}` : message;
+      const fullMessage = name ? `*${name}*\n\n${message}` : message;
 
       statusDiv.textContent = '📤 Üzenet küldése folyamatban...';
       statusDiv.style.color = '#777';
