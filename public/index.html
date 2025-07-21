@@ -5,43 +5,102 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WhatsApp Üzenetküldő</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      margin: 2rem;
+      background: linear-gradient(135deg, #e0f7fa, #ffffff);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
       max-width: 400px;
-    }
-    label {
-      display: block;
-      margin-top: 1rem;
-    }
-    input, textarea, button {
       width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.3rem;
-      font-size: 1rem;
+      animation: fadeIn 0.5s ease;
     }
-    button {
+
+    h1 {
+      text-align: center;
+      color: #00796b;
+      margin-bottom: 1.5rem;
+    }
+
+    label {
       margin-top: 1rem;
-      cursor: pointer;
+      display: block;
+      color: #555;
+      font-weight: 500;
     }
+
+    input, textarea {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 0.3rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #26a69a;
+      outline: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 1.5rem;
+      font-size: 1rem;
+      background: #26a69a;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #00796b;
+    }
+
     #status {
       margin-top: 1rem;
-      font-weight: bold;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
-  <h1>WhatsApp Üzenetküldő</h1>
+  <div class="container">
+    <h1>📨 WhatsApp Üzenetküldő</h1>
 
-  <label for="phone">Telefonszám (+36xxxxxxxxx formátumban):</label>
-  <input type="text" id="phone" placeholder="+36123456789" />
+    <label for="phone">Telefonszám (+36...):</label>
+    <input type="text" id="phone" placeholder="+36123456789" />
 
-  <label for="message">Üzenet:</label>
-  <textarea id="message" rows="4" placeholder="Írd be az üzenetet..."></textarea>
+    <label for="message">Üzenet:</label>
+    <textarea id="message" rows="4" placeholder="Írd be az üzenetet..."></textarea>
 
-  <button id="sendBtn">Küldés</button>
+    <button id="sendBtn">Üzenet küldése</button>
 
-  <div id="status"></div>
+    <div id="status"></div>
+  </div>
 
   <script>
     const sendBtn = document.getElementById('sendBtn');
@@ -53,9 +112,12 @@
 
       if (!phone || !message) {
         statusDiv.textContent = 'Kérlek, tölts ki minden mezőt!';
-        statusDiv.style.color = 'red';
+        statusDiv.style.color = 'crimson';
         return;
       }
+
+      statusDiv.textContent = 'Küldés folyamatban...';
+      statusDiv.style.color = '#555';
 
       fetch('/send-message', {
         method: 'POST',
@@ -64,13 +126,13 @@
       })
       .then(res => res.json())
       .then(data => {
-        statusDiv.textContent = data.message || 'Üzenet elküldve!';
+        statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
         statusDiv.style.color = 'green';
       })
       .catch(err => {
         console.error(err);
-        statusDiv.textContent = 'Hiba történt az üzenetküldés során.';
-        statusDiv.style.color = 'red';
+        statusDiv.textContent = '❌ Hiba történt az üzenetküldés során.';
+        statusDiv.style.color = 'crimson';
       });
     });
   </script>
