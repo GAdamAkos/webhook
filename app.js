@@ -136,41 +136,46 @@ app.post('/webhook', (req, res) => {
 
   const statuses = value?.statuses;
   if (statuses) {
-    statuses.forEach(status => {
-      const wa_message_id = status.id;
-      const statusValue = status.status;
-      const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
-      const error = status.errors?.[0];
-      const error_code = error?.code || null;
-      const error_message = error?.message || null;
+  statuses.forEach(status => {
+    const wa_message_id = status.id;
+    const statusValue = status.status;
+    const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
+    const error = status.errors?.[0];
+    const error_code = error?.code || null;
+    const error_message = error?.message || null;
 
-      db.get(
-        'SELECT id FROM messages WHERE wa_message_id = ?',
-        [wa_message_id],
-        (err, msgRow) => {
-          const localMessageId = msgRow?.id || null;
-
-          if (!localMessageId) {
-            console.warn(`⚠️ Nem található üzenet a message_metadata számára (wa_message_id: ${wa_message_id})`);
-            return;
-          }
-
-          db.run(
-            `INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message)
-             VALUES (?, ?, ?, ?, ?)`,
-            [localMessageId, statusValue, timestamp, error_code, error_message],
-            function (err) {
-              if (err) {
-                console.error('❌ DB hiba (message_metadata):', err);
-              } else {
-                console.log(`✅ Status mentve: ${statusValue} (msg_id=${localMessageId})`);
-              }
-            }
-          );
+    db.get(
+      'SELECT id FROM messages WHERE wa_message_id = ?',
+      [wa_message_id],
+      (err, msgRow) => {
+        if (err) {
+          console.error(`❌ Hiba üzenet keresésnél (metadata mentéshez):`, err);
+          return;
         }
-      );
-    });
-  }
+
+        const localMessageId = msgRow?.id || null;
+
+        if (!localMessageId) {
+          console.warn(`⚠️ Nem található üzenet a message_metadata számára (wa_message_id: ${wa_message_id})`);
+          return;
+        }
+
+        db.run(
+          `INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message)
+           VALUES (?, ?, ?, ?, ?)`,
+          [localMessageId, statusValue, timestamp, error_code, error_message],
+          function (err) {
+            if (err) {
+              console.error('❌ DB hiba (message_metadata):', err);
+            } else {
+              console.log(`✅ Status mentve: ${statusValue} (msg_id=${localMessageId})`);
+            }
+          }
+        );
+      }
+    );
+  });
+}
 
   res.sendStatus(200);
 });
