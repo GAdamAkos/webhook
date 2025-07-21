@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WhatsApp Üzenetküldő</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      max-width: 400px;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+    }
+    input, textarea, button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.3rem;
+      font-size: 1rem;
+    }
+    button {
+      margin-top: 1rem;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>WhatsApp Üzenetküldő</h1>
+
+  <label for="phone">Telefonszám (+36xxxxxxxxx formátumban):</label>
+  <input type="text" id="phone" placeholder="+36123456789" />
+
+  <label for="message">Üzenet:</label>
+  <textarea id="message" rows="4" placeholder="Írd be az üzenetet..."></textarea>
+
+  <button id="sendBtn">Küldés</button>
+
+  <div id="status"></div>
+
+  <script>
+    const sendBtn = document.getElementById('sendBtn');
+    const statusDiv = document.getElementById('status');
+
+    sendBtn.addEventListener('click', () => {
+      const phone = document.getElementById('phone').value.trim();
+      const message = document.getElementById('message').value.trim();
+
+      if (!phone || !message) {
+        statusDiv.textContent = 'Kérlek, tölts ki minden mezőt!';
+        statusDiv.style.color = 'red';
+        return;
+      }
+
+      fetch('/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, message }),
+      })
+      .then(res => res.json())
+      .then(data => {
+        statusDiv.textContent = data.message || 'Üzenet elküldve!';
+        statusDiv.style.color = 'green';
+      })
+      .catch(err => {
+        console.error(err);
+        statusDiv.textContent = 'Hiba történt az üzenetküldés során.';
+        statusDiv.style.color = 'red';
+      });
+    });
+  </script>
+</body>
+</html>
