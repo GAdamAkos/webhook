@@ -66,7 +66,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-// Webhook POST - üzenet és kontakt mentése
+// Webhook POST - bejövő üzenet és kontakt mentése
 app.post('/webhook', (req, res) => {
   console.log("📨 Webhook kérés érkezett:", JSON.stringify(req.body, null, 2));
 
@@ -136,51 +136,103 @@ app.post('/webhook', (req, res) => {
 
   const statuses = value?.statuses;
   if (statuses) {
-  statuses.forEach(status => {
-    const wa_message_id = status.id;
-    const statusValue = status.status;
-    const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
-    const error = status.errors?.[0];
-    const error_code = error?.code || null;
-    const error_message = error?.message || null;
+    statuses.forEach(status => {
+      const wa_message_id = status.id;
+      const statusValue = status.status;
+      const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
+      const error = status.errors?.[0];
+      const error_code = error?.code || null;
+      const error_message = error?.message || null;
 
-    db.get(
-      'SELECT id FROM messages WHERE wa_message_id = ?',
-      [wa_message_id],
-      (err, msgRow) => {
-        if (err) {
-          console.error(`❌ Hiba üzenet keresésnél (metadata mentéshez):`, err);
-          return;
-        }
-
-        const localMessageId = msgRow?.id || null;
-
-        if (!localMessageId) {
-          console.warn(`⚠️ Nem található üzenet a message_metadata számára (wa_message_id: ${wa_message_id})`);
-          return;
-        }
-
-        db.run(
-          `INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message)
-           VALUES (?, ?, ?, ?, ?)`,
-          [localMessageId, statusValue, timestamp, error_code, error_message],
-          function (err) {
-            if (err) {
-              console.error('❌ DB hiba (message_metadata):', err);
-            } else {
-              console.log(`✅ Status mentve: ${statusValue} (msg_id=${localMessageId})`);
-            }
+      db.get(
+        'SELECT id FROM messages WHERE wa_message_id = ?',
+        [wa_message_id],
+        (err, msgRow) => {
+          if (err) {
+            console.error(`❌ Hiba üzenet keresésnél (metadata mentéshez):`, err);
+            return;
           }
-        );
-      }
-    );
-  });
-}
+
+          const localMessageId = msgRow?.id || null;
+
+          if (!localMessageId) {
+            console.warn(`⚠️ Nem található üzenet a message_metadata számára (wa_message_id: ${wa_message_id})`);
+            return;
+          }
+
+          db.run(
+            `INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message)
+             VALUES (?, ?, ?, ?, ?)`,
+            [localMessageId, statusValue, timestamp, error_code, error_message],
+            function (err) {
+              if (err) {
+                console.error('❌ DB hiba (message_metadata):', err);
+              } else {
+                console.log(`✅ Status mentve: ${statusValue} (msg_id=${localMessageId})`);
+              }
+            }
+          );
+        }
+      );
+    });
+  }
 
   res.sendStatus(200);
 });
 
-// JSON válasz: Összes kontakt
+// Küldött üzenetek logolása a Java kliensből
+app.post('/log-outgoing', (req, res) => {
+  const { recipient_phone, message_body, wa_message_id, sent_at } = req.body;
+
+  if (!recipient_phone || !message_body || !wa_message_id) {
+    return res.status(400).json({ error: 'Hiányzó kötelező mezők' });
+  }
+
+  db.get(
+    'SELECT id FROM contacts WHERE wa_id = ?',
+    [recipient_phone],
+    (err, row) => {
+      if (err) {
+        console.error('❌ DB hiba (contact keresés):', err);
+        return res.sendStatus(500);
+      }
+
+      const insertMessage = (contact_id) => {
+        db.run(
+          `INSERT OR IGNORE INTO messages (contact_id, message_body, message_type, received_at, wa_message_id)
+           VALUES (?, ?, ?, ?, ?)`,
+          [contact_id, message_body, 'text', sent_at || new Date().toISOString(), wa_message_id],
+          function (err) {
+            if (err) {
+              console.error('❌ DB hiba (üzenet mentés):', err);
+              return res.sendStatus(500);
+            }
+            console.log('✅ Kiküldött üzenet mentve:', wa_message_id);
+            res.status(201).json({ success: true, message_id: this.lastID });
+          }
+        );
+      };
+
+      if (row) {
+        insertMessage(row.id);
+      } else {
+        db.run(
+          `INSERT INTO contacts (wa_id) VALUES (?)`,
+          [recipient_phone],
+          function (err) {
+            if (err) {
+              console.error('❌ DB hiba (kontakt létrehozás):', err);
+              return res.sendStatus(500);
+            }
+            insertMessage(this.lastID);
+          }
+        );
+      }
+    }
+  );
+});
+
+// Összes kontakt (JSON)
 app.get('/contacts', (req, res) => {
   const query = `
     SELECT id AS ID, wa_id AS Phone_number, name AS Name
@@ -197,7 +249,7 @@ app.get('/contacts', (req, res) => {
   });
 });
 
-// JSON válasz: Összes üzenet
+// Összes üzenet (JSON)
 app.get('/messages', (req, res) => {
   const query = `
     SELECT 
@@ -221,7 +273,7 @@ app.get('/messages', (req, res) => {
   });
 });
 
-// JSON válasz: Üzenet státusz metaadatok
+// Metaadatok (JSON)
 app.get('/message-metadata', (req, res) => {
   const query = `
     SELECT 
