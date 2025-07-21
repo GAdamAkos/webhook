@@ -1,4 +1,5 @@
 require('dotenv').config();
+const axios = require('axios');
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
@@ -64,6 +65,42 @@ app.get('/webhook', (req, res) => {
   } else {
     console.log('❌ Webhook verifikáció sikertelen');
     res.sendStatus(403);
+  }
+});
+
+app.post('/send-message', async (req, res) => {
+  const { phone, message } = req.body;
+  const phoneNumberId = process.env.PHONE_NUMBER_ID;
+  const accessToken = process.env.WHATSAPP_TOKEN;
+
+  if (!phone || !message) {
+    return res.status(400).json({ message: 'Hiányzó adat (telefonszám vagy üzenet)' });
+  }
+
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'text',
+        text: {
+          preview_url: false,
+          body: message
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    console.log('✅ Üzenet elküldve:', response.data);
+    res.json({ message: 'Üzenet sikeresen elküldve ✅' });
+  } catch (error) {
+    console.error('❌ Hiba az üzenetküldés során:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Hiba az üzenetküldés során' });
   }
 });
 
