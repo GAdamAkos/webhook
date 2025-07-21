@@ -213,48 +213,65 @@
     });
 
     sendBtn.addEventListener('click', () => {
-      const name = document.getElementById('name').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const message = document.getElementById('message').value.trim();
-      const fileInput = document.getElementById('file');
+  const name = document.getElementById('name').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const message = document.getElementById('message').value.trim();
+  const fileInput = document.getElementById('file');
 
-      if (!phone || (!message && fileInput.files.length === 0)) {
-        statusDiv.textContent = '📛 Kérlek, tölts ki minden szükséges mezőt vagy adj meg fájlt!';
-        statusDiv.style.color = 'crimson';
-        return;
-      }
+  if (!phone || (!message && fileInput.files.length === 0)) {
+    statusDiv.textContent = '📛 Kérlek, add meg a telefonszámot és üzenetet vagy fájlt!';
+    statusDiv.style.color = 'crimson';
+    return;
+  }
 
-      const fullMessage = name ? `*${name}*\n\n${message}` : message;
+  const fullMessage = name ? `*${name}*\n\n${message}` : message;
+  statusDiv.textContent = '📤 Üzenet küldése folyamatban...';
+  statusDiv.style.color = '#777';
 
-      statusDiv.textContent = '📤 Üzenet küldése folyamatban...';
-      statusDiv.style.color = '#777';
+  if (fileInput.files.length > 0) {
+    // fájl van csatolva → formData + /send-file-message
+    const formData = new FormData();
+    formData.append('phone', phone);
+    formData.append('message', fullMessage);
+    formData.append('file', fileInput.files[0]);
 
-      const formData = new FormData();
-      formData.append('phone', phone);
-      formData.append('message', fullMessage);
-
-      if (fileInput.files.length > 0) {
-        formData.append('file', fileInput.files[0]);
-      }
-
-      const endpoint = fileInput.files.length > 0 ? '/send-file-message' : '/send-message';
-
-      fetch(endpoint, {
-        method: 'POST',
-        body: formData,
+    fetch('/send-file-message', {
+      method: 'POST',
+      body: formData,
+    })
+      .then(res => res.json())
+      .then(data => {
+        statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
+        statusDiv.style.color = 'green';
+        updateHistory(phone, fullMessage + ' 📎 [fájl]');
       })
-        .then(res => res.json())
-        .then(data => {
-          statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
-          statusDiv.style.color = 'green';
-          updateHistory(phone, fullMessage + (fileInput.files.length > 0 ? ' 📎 [fájl]' : ''));
-        })
-        .catch(err => {
-          console.error(err);
-          statusDiv.textContent = '❌ Hiba történt az üzenetküldés során.';
-          statusDiv.style.color = 'crimson';
-        });
-    });
+      .catch(err => {
+        console.error(err);
+        statusDiv.textContent = '❌ Hiba történt a fájlküldés során.';
+        statusDiv.style.color = 'crimson';
+      });
+  } else {
+    // csak szöveges üzenet → JSON + /send-message
+    fetch('/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ phone, message: fullMessage }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
+        statusDiv.style.color = 'green';
+        updateHistory(phone, fullMessage);
+      })
+      .catch(err => {
+        console.error(err);
+        statusDiv.textContent = '❌ Hiba történt az üzenetküldés során.';
+        statusDiv.style.color = 'crimson';
+      });
+  }
+});
 
     function updateHistory(phone, message) {
       const li = document.createElement('li');
