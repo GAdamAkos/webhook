@@ -4,6 +4,9 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
+const FormData = require('form-data');
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
@@ -108,6 +111,67 @@ app.post('/send-message', async (req, res) => {
     res.status(500).json({ message: 'Hiba az üzenetküldés során' });
   }
 });
+
+app.post('/send-file-message', upload.single('file'), async (req, res) => {
+  const { phone, message } = req.body;
+  const file = req.file;
+
+  if (!phone || (!message && !file)) {
+    return res.status(400).json({ message: 'Hiányzó mezők.' });
+  }
+
+  try {
+    const form = new FormData();
+    form.append('file', fs.createReadStream(file.path));
+    form.append('type', file.mimetype);
+
+    const mediaRes = await axios.post(
+      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/media`,
+      form,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
+          ...form.getHeaders()
+        }
+      }
+    );
+
+    const mediaId = mediaRes.data.id;
+
+    // fájltípus ellenőrzés – kép vagy dokumentum
+    const type = file.mimetype.startsWith('image/') ? 'image' : 'document';
+
+    const messagePayload = {
+      messaging_product: 'whatsapp',
+      to: phone,
+      type: type,
+      [type]: {
+        id: mediaId,
+        caption: message || (type === 'image' ? '📷 Kép csatolva' : '📎 Dokumentum')
+      }
+    };
+
+    await axios.post(
+      `https://graph.facebook.com/v19.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      messagePayload,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // töröljük a feltöltött fájlt
+    fs.unlink(file.path, () => {});
+
+    res.json({ message: '✅ Üzenet elküldve fájllal.' });
+  } catch (err) {
+    console.error(err.response?.data || err);
+    res.status(500).json({ message: '❌ Hiba történt a küldés során.' });
+  }
+});
+
 // Webhook POST - üzenet és kontakt mentése
 app.post('/webhook', (req, res) => {
   console.log("📨 Webhook kérés érkezett:", JSON.stringify(req.body, null, 2));
