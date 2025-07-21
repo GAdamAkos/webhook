@@ -74,6 +74,7 @@ app.post('/send-message', async (req, res) => {
   const accessToken = process.env.ACCESS_TOKEN;
 
   console.log('🚩 Access Token:', process.env.ACCESS_TOKEN);
+  console.log('🚩 All env vars:', process.env);
 
   console.log('Access token:', accessToken);  // <--- Itt a log
 
