@@ -5,57 +5,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WhatsApp Üzenetküldő</title>
   <style>
+    :root {
+      --bg: #ffffff;
+      --text: #111;
+      --accent: #26a69a;
+      --input: #f0f0f0;
+      --border: #ccc;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1e;
+        --text: #eee;
+        --accent: #26a69a;
+        --input: #2c2c2c;
+        --border: #444;
+      }
+    }
+
+    [data-theme="dark"] {
+      --bg: #1e1e1e;
+      --text: #eee;
+      --input: #2c2c2c;
+      --border: #444;
+    }
+
+    [data-theme="light"] {
+      --bg: #ffffff;
+      --text: #111;
+      --input: #f0f0f0;
+      --border: #ccc;
+    }
+
     * {
       box-sizing: border-box;
     }
 
     body {
-      background: linear-gradient(135deg, #e0f7fa, #ffffff);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', sans-serif;
       margin: 0;
       padding: 2rem;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
       min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
     }
 
     .container {
-      background: #fff;
+      background: var(--bg);
+      border: 1px solid var(--border);
       padding: 2rem;
       border-radius: 1rem;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-      max-width: 400px;
+      max-width: 500px;
       width: 100%;
-      animation: fadeIn 0.5s ease;
     }
 
     h1 {
       text-align: center;
-      color: #00796b;
-      margin-bottom: 1.5rem;
+      color: var(--accent);
+      margin-bottom: 1rem;
     }
 
     label {
       margin-top: 1rem;
       display: block;
-      color: #555;
       font-weight: 500;
     }
 
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       padding: 0.75rem;
       margin-top: 0.3rem;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border);
       border-radius: 0.5rem;
+      background: var(--input);
+      color: var(--text);
       font-size: 1rem;
-      transition: border-color 0.3s ease;
-    }
-
-    input:focus, textarea:focus {
-      border-color: #26a69a;
-      outline: none;
     }
 
     button {
@@ -63,12 +92,11 @@
       padding: 0.75rem;
       margin-top: 1.5rem;
       font-size: 1rem;
-      background: #26a69a;
+      background: var(--accent);
       color: white;
       border: none;
       border-radius: 0.5rem;
       cursor: pointer;
-      transition: background 0.3s ease;
     }
 
     button:hover {
@@ -81,53 +109,132 @@
       text-align: center;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+    .history {
+      margin-top: 2rem;
+    }
+
+    .history h2 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .history ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .history li {
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.95rem;
+    }
+
+    .theme-toggle {
+      text-align: right;
+      margin-bottom: 1rem;
+    }
+
+    .theme-toggle button {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="container" id="app">
+    <div class="theme-toggle">
+      <button onclick="toggleTheme()">🌓 Téma váltása</button>
+    </div>
+
     <h1>📨 WhatsApp Üzenetküldő</h1>
+
+    <label for="name">Név (opcionális):</label>
+    <input type="text" id="name" placeholder="Pl. Gábor" />
 
     <label for="phone">Telefonszám (+36...):</label>
     <input type="text" id="phone" placeholder="+36123456789" />
 
-    <label for="message">Üzenet:</label>
+    <label for="template">Üzenet sablon:</label>
+    <select id="template">
+      <option value="">-- Válassz sablont --</option>
+      <option value="Szia! Hogy vagy?">Szia! Hogy vagy?</option>
+      <option value="Kérlek, hívj vissza!">Kérlek, hívj vissza!</option>
+      <option value="Küldöm, amit megbeszéltünk.">Küldöm, amit megbeszéltünk.</option>
+    </select>
+
+    <label for="message">Egyedi üzenet:</label>
     <textarea id="message" rows="4" placeholder="Írd be az üzenetet..."></textarea>
 
     <button id="sendBtn">Üzenet küldése</button>
 
     <div id="status"></div>
+
+    <div class="history">
+      <h2>📜 Előzmények</h2>
+      <ul id="historyList"></ul>
+    </div>
   </div>
 
   <script>
     const sendBtn = document.getElementById('sendBtn');
     const statusDiv = document.getElementById('status');
+    const templateSelect = document.getElementById('template');
+    const historyList = document.getElementById('historyList');
 
+    // Téma váltás
+    function toggleTheme() {
+      const current = document.body.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.body.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    }
+
+    // Alap téma beállítás
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        document.body.setAttribute('data-theme', savedTheme);
+      }
+    });
+
+    // Sablon kiválasztás → beírja az üzenet mezőbe
+    templateSelect.addEventListener('change', () => {
+      const msgBox = document.getElementById('message');
+      if (!msgBox.value.trim()) {
+        msgBox.value = templateSelect.value;
+      }
+    });
+
+    // Üzenet küldése
     sendBtn.addEventListener('click', () => {
+      const name = document.getElementById('name').value.trim();
       const phone = document.getElementById('phone').value.trim();
       const message = document.getElementById('message').value.trim();
 
       if (!phone || !message) {
-        statusDiv.textContent = 'Kérlek, tölts ki minden mezőt!';
+        statusDiv.textContent = '📛 Kérlek, tölts ki minden szükséges mezőt!';
         statusDiv.style.color = 'crimson';
         return;
       }
 
-      statusDiv.textContent = 'Küldés folyamatban...';
-      statusDiv.style.color = '#555';
+      const fullMessage = name ? `${name}: ${message}` : message;
+
+      statusDiv.textContent = '📤 Üzenet küldése folyamatban...';
+      statusDiv.style.color = '#777';
 
       fetch('/send-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, message }),
+        body: JSON.stringify({ phone, message: fullMessage }),
       })
       .then(res => res.json())
       .then(data => {
         statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
         statusDiv.style.color = 'green';
+        updateHistory(phone, fullMessage);
       })
       .catch(err => {
         console.error(err);
@@ -135,6 +242,13 @@
         statusDiv.style.color = 'crimson';
       });
     });
+
+    function updateHistory(phone, message) {
+      const li = document.createElement('li');
+      const now = new Date().toLocaleTimeString();
+      li.textContent = `[${now}] ${phone} → ${message}`;
+      historyList.prepend(li);
+    }
   </script>
 </body>
 </html>
