@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>📥 Bejövő WhatsApp Üzenetek</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f4f9;
+      margin: 0;
+      padding: 2rem;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .message-container {
+      display: grid;
+      gap: 1rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .message-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease;
+    }
+    .message-card:hover {
+      transform: scale(1.01);
+    }
+    .message-header {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .meta {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+    }
+    .type {
+      display: inline-block;
+      font-size: 0.8rem;
+      color: white;
+      background: #6c63ff;
+      padding: 0.2rem 0.6rem;
+      border-radius: 5px;
+      margin-left: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>📥 Beérkezett WhatsApp Üzenetek</h1>
+  <div class="message-container" id="messageContainer">
+    <p>🔄 Üzenetek betöltése...</p>
+  </div>
+
+  <script>
+    fetch('/messages')
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById('messageContainer');
+        container.innerHTML = '';
+
+        if (data.length === 0) {
+          container.innerHTML = '<p>Nincsenek üzenetek.</p>';
+          return;
+        }
+
+        data.reverse().forEach(msg => {
+          const card = document.createElement('div');
+          card.className = 'message-card';
+          card.innerHTML = `
+            <div class="message-header">${msg.Name} <span class="type">${msg.Type}</span></div>
+            <div class="meta">📱 ${msg.Phone_number} – 🕒 ${msg.Received_at}</div>
+            <div class="message-body">${msg.Body || '<em>Nincs tartalom</em>'}</div>
+          `;
+          container.appendChild(card);
+        });
+      })
+      .catch(err => {
+        document.getElementById('messageContainer').innerHTML = '<p>❌ Hiba történt az üzenetek lekérésekor.</p>';
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
