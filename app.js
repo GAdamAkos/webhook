@@ -73,6 +73,8 @@ app.post('/send-message', async (req, res) => {
   const phoneNumberId = process.env.PHONE_NUMBER_ID;
   const accessToken = process.env.WHATSAPP_TOKEN;
 
+  console.log('Access token:', accessToken);  // <--- Itt a log
+
   if (!phone || !message) {
     return res.status(400).json({ message: 'Hiányzó adat (telefonszám vagy üzenet)' });
   }
@@ -103,7 +105,6 @@ app.post('/send-message', async (req, res) => {
     res.status(500).json({ message: 'Hiba az üzenetküldés során' });
   }
 });
-
 // Webhook POST - üzenet és kontakt mentése
 app.post('/webhook', (req, res) => {
   console.log("📨 Webhook kérés érkezett:", JSON.stringify(req.body, null, 2));
