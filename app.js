@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
+app.use(express.static('public'));
 const port = process.env.PORT || 3000;
 
 const dbPath = path.resolve(__dirname, 'whatsapp_messages.db');
