@@ -71,7 +71,7 @@ app.get('/webhook', (req, res) => {
 app.post('/send-message', async (req, res) => {
   const { phone, message } = req.body;
   const phoneNumberId = process.env.PHONE_NUMBER_ID;
-  const accessToken = process.env.WHATSAPP_TOKEN;
+  const accessToken = process.env.ACCESS_TOKEN;
 
   console.log('Access token:', accessToken);  // <--- Itt a log
 
