@@ -73,6 +73,8 @@ app.post('/send-message', async (req, res) => {
   const phoneNumberId = process.env.PHONE_NUMBER_ID;
   const accessToken = process.env.ACCESS_TOKEN;
 
+  console.log('🚩 Access Token:', process.env.ACCESS_TOKEN);
+
   console.log('Access token:', accessToken);  // <--- Itt a log
 
   if (!phone || !message) {
