@@ -344,15 +344,41 @@ app.get('/download-db', (req, res) => {
   });
 });
 
-app.get('/templates', (req, res) => {
-  const approvedTemplates = [
-    'hello_world',
-    'rendeles_megerosites',
-    'ugyfelszolgalat_valasz',
-    'emlekezteto_fizetesrol',
-    'conv_start',
-    'elso_sablon'
-  ];
+app.get('/available-templates', async (req, res) => {
+  try {
+    const response = await axios.get(
+      `https://graph.facebook.com/v19.0/${WHATSAPP_BUSINESS_ACCOUNT_ID}/message_templates`,
+      {
+        headers: {
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    const templates = {};
+    for (const tpl of response.data.data) {
+      if (tpl.status === 'APPROVED') {
+        const params = [];
+        if (tpl.components) {
+          for (const c of tpl.components) {
+            if (c.type === "BODY" && c.text) {
+              const matches = [...c.text.matchAll(/\{\{(\d+)\}\}/g)];
+              for (const match of matches) {
+                params[parseInt(match[1]) - 1] = `Paraméter ${match[1]}`;
+              }
+            }
+          }
+        }
+        templates[tpl.name] = params;
+      }
+    }
+
+    res.json(templates);
+  } catch (error) {
+    console.error('❌ Hiba a sablonok lekérdezésekor:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Nem sikerült sablonokat lekérni.' });
+  }
+});
 
   res.json(approvedTemplates);
 });
