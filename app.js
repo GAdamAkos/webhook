@@ -109,6 +109,45 @@ app.post('/send-message', async (req, res) => {
   }
 });
 
+app.post('/send-template', async (req, res) => {
+  const { phone, templateName, languageCode = 'hu' } = req.body;
+  const phoneNumberId = process.env.PHONE_NUMBER_ID;
+  const accessToken = process.env.ACCESS_TOKEN;
+
+  if (!phone || !templateName) {
+    return res.status(400).json({ message: 'Hiányzó telefonszám vagy sablon név' });
+  }
+
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: {
+            code: languageCode,
+          },
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('✅ Sablon üzenet elküldve:', response.data);
+    res.json({ message: 'Sablon üzenet sikeresen elküldve ✅' });
+  } catch (error) {
+    console.error('❌ Hiba a sablon üzenet küldésekor:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Hiba a sablon üzenet küldésekor' });
+  }
+});
+
 // Webhook POST - üzenet és kontakt mentése
 app.post('/webhook', (req, res) => {
   console.log("📨 Webhook kérés érkezett:", JSON.stringify(req.body, null, 2));
