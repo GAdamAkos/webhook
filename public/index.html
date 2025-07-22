@@ -241,21 +241,13 @@
         .then(res => res.json())
         .then(data => {
           whatsappTemplates = data;
-          updateTemplateOptions(); // sablonok dropdown feltöltése
+          updateTemplateOptions();
         })
         .catch(err => {
           console.error('❌ Nem sikerült sablonokat lekérni:', err);
           statusDiv.textContent = 'Nem sikerült betölteni a sablonokat.';
           statusDiv.style.color = 'crimson';
         });
-    
-    updateTemplateOptions();
-  })
-  .catch(err => {
-    console.error('❌ Nem sikerült betölteni a sablonokat:', err);
-    statusDiv.textContent = '❌ Nem sikerült betölteni a sablonokat.';
-    statusDiv.style.color = 'crimson';
-  });
 
       updateTemplateOptions();
     });
