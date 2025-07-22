@@ -109,13 +109,13 @@ app.post('/send-message', async (req, res) => {
   }
 });
 
-app.post('/send-template-message', async (req, res) => {
-  const { phone, template, parameters } = req.body;
+app.post('/send-template', async (req, res) => {
+  const { phone, templateName, languageCode = 'hu' } = req.body;
   const phoneNumberId = process.env.PHONE_NUMBER_ID;
   const accessToken = process.env.ACCESS_TOKEN;
 
-  if (!phone || !template || !Array.isArray(parameters)) {
-    return res.status(400).json({ message: 'Hiányzó adat (telefon, sablon, paraméterek)' });
+  if (!phone || !templateName) {
+    return res.status(400).json({ message: 'Hiányzó telefonszám vagy sablon név' });
   }
 
   try {
@@ -126,32 +126,25 @@ app.post('/send-template-message', async (req, res) => {
         to: phone,
         type: 'template',
         template: {
-          name: template,
-          language: { code: 'hu' },
-          components: [
-            {
-              type: 'body',
-              parameters: parameters.map(p => ({
-                type: 'text',
-                text: p
-              }))
-            }
-          ]
-        }
+          name: templateName,
+          language: {
+            code: languageCode,
+          },
+        },
       },
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
-        }
+        },
       }
     );
 
-    console.log('✅ Sablon elküldve:', response.data);
-    res.json({ message: 'Sablon sikeresen elküldve ✅' });
+    console.log('✅ Sablon üzenet elküldve:', response.data);
+    res.json({ message: 'Sablon üzenet sikeresen elküldve ✅' });
   } catch (error) {
-    console.error('❌ Hiba a sablonküldés során:', error.response?.data || error.message);
-    res.status(500).json({ message: 'Hiba történt a sablon küldésekor ❌' });
+    console.error('❌ Hiba a sablon üzenet küldésekor:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Hiba a sablon üzenet küldésekor' });
   }
 });
 
@@ -349,42 +342,6 @@ app.get('/download-db', (req, res) => {
       }
     });
   });
-});
-
-app.get('/available-templates', async (req, res) => {
-  try {
-    const response = await axios.get(
-      `https://graph.facebook.com/v19.0/${WHATSAPP_BUSINESS_ACCOUNT_ID}/message_templates`,
-      {
-        headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
-        },
-      }
-    );
-
-    const templates = {};
-    for (const tpl of response.data.data) {
-      if (tpl.status === 'APPROVED') {
-        const params = [];
-        if (tpl.components) {
-          for (const c of tpl.components) {
-            if (c.type === "BODY" && c.text) {
-              const matches = [...c.text.matchAll(/\{\{(\d+)\}\}/g)];
-              for (const match of matches) {
-                params[parseInt(match[1]) - 1] = `Paraméter ${match[1]}`;
-              }
-            }
-          }
-        }
-        templates[tpl.name] = params;
-      }
-    }
-
-    res.json(templates);
-  } catch (error) {
-    console.error('❌ Hiba a sablonok lekérdezésekor:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Nem sikerült sablonokat lekérni.' });
-  }
 });
 
 // Szerver indítása
