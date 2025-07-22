@@ -60,7 +60,7 @@
       padding: 2rem;
       border-radius: 1rem;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-      max-width: 500px;
+      max-width: 600px;
       width: 100%;
     }
 
@@ -145,6 +145,10 @@
       cursor: pointer;
       font-weight: bold;
     }
+
+    #message {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -161,13 +165,18 @@
     <label for="phone">Telefonszám (+36...):</label>
     <input type="text" id="phone" placeholder="+36123456789" />
 
+    <label for="templateType">Sablon típusa:</label>
+    <select id="templateType">
+      <option value="text">Egyszerű szöveges sablon</option>
+      <option value="whatsapp">WhatsApp API sablon</option>
+    </select>
+
     <label for="template">Üzenet sablon:</label>
     <select id="template">
       <option value="">-- Válassz sablont --</option>
-      <option value="Szia! Hogy vagy?">Szia! Hogy vagy?</option>
-      <option value="Kérlek, hívj vissza!">Kérlek, hívj vissza!</option>
-      <option value="Küldöm, amit megbeszéltünk.">Küldöm, amit megbeszéltünk.</option>
     </select>
+
+    <div id="templateParams"></div>
 
     <label for="message">Egyedi üzenet:</label>
     <textarea id="message" rows="4" placeholder="Írd be az üzenetet..."></textarea>
@@ -186,9 +195,24 @@
   </div>
 
   <script>
+    const textTemplates = {
+      "Szia! Hogy vagy?": "Szia! Hogy vagy?",
+      "Kérlek, hívj vissza!": "Kérlek, hívj vissza!",
+      "Küldöm, amit megbeszéltünk.": "Küldöm, amit megbeszéltünk."
+    };
+
+    const whatsappTemplates = {
+      "hello_world": ["név"],
+      "conv_start": ["termék neve", "ár"],
+      "elso_sablon": ["időpont", "helyszín", "kapcsolattartó"]
+    };
+
+    const templateTypeSelect = document.getElementById('templateType');
+    const templateSelect = document.getElementById('template');
+    const messageBox = document.getElementById('message');
+    const templateParamsDiv = document.getElementById('templateParams');
     const sendBtn = document.getElementById('sendBtn');
     const statusDiv = document.getElementById('status');
-    const templateSelect = document.getElementById('template');
     const historyList = document.getElementById('historyList');
 
     function toggleTheme() {
@@ -198,80 +222,113 @@
       localStorage.setItem('theme', next);
     }
 
+    function updateTemplateOptions() {
+      const type = templateTypeSelect.value;
+      templateSelect.innerHTML = '<option value="">-- Válassz sablont --</option>';
+      messageBox.style.display = type === "text" ? "block" : "none";
+      templateParamsDiv.innerHTML = "";
+
+      const templates = type === "text" ? textTemplates : whatsappTemplates;
+      for (const key in templates) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = key;
+        templateSelect.appendChild(opt);
+      }
+    }
+
+    templateTypeSelect.addEventListener('change', updateTemplateOptions);
     document.addEventListener('DOMContentLoaded', () => {
       const savedTheme = localStorage.getItem('theme');
-      if (savedTheme) {
-        document.body.setAttribute('data-theme', savedTheme);
-      }
+      if (savedTheme) document.body.setAttribute('data-theme', savedTheme);
+      updateTemplateOptions();
     });
 
     templateSelect.addEventListener('change', () => {
-      const msgBox = document.getElementById('message');
-      if (!msgBox.value.trim()) {
-        msgBox.value = templateSelect.value;
+      const type = templateTypeSelect.value;
+      const selected = templateSelect.value;
+
+      if (type === "text") {
+        messageBox.value = textTemplates[selected] || '';
+      } else if (type === "whatsapp" && whatsappTemplates[selected]) {
+        templateParamsDiv.innerHTML = "";
+        whatsappTemplates[selected].forEach((param, i) => {
+          const label = document.createElement('label');
+          label.textContent = `Paraméter ${i + 1} – ${param}:`;
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.name = `param${i}`;
+          input.placeholder = param;
+          input.classList.add('template-param');
+
+          templateParamsDiv.appendChild(label);
+          templateParamsDiv.appendChild(input);
+        });
       }
     });
 
     sendBtn.addEventListener('click', () => {
-  const name = document.getElementById('name').value.trim();
-  const phone = document.getElementById('phone').value.trim();
-  const message = document.getElementById('message').value.trim();
-  const fileInput = document.getElementById('file');
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const type = templateTypeSelect.value;
+      const selectedTemplate = templateSelect.value;
+      const fileInput = document.getElementById('file');
 
-  if (!phone || (!message && fileInput.files.length === 0)) {
-    statusDiv.textContent = '📛 Kérlek, add meg a telefonszámot és üzenetet vagy fájlt!';
-    statusDiv.style.color = 'crimson';
-    return;
-  }
-
-  const fullMessage = name ? `*${name}*\n\n${message}` : message;
-  statusDiv.textContent = '📤 Üzenet küldése folyamatban...';
-  statusDiv.style.color = '#777';
-
-  if (fileInput.files.length > 0) {
-    // fájl van csatolva → formData + /send-file-message
-    const formData = new FormData();
-    formData.append('phone', phone);
-    formData.append('message', fullMessage);
-    formData.append('file', fileInput.files[0]);
-
-    fetch('/send-file-message', {
-      method: 'POST',
-      body: formData,
-    })
-      .then(res => res.json())
-      .then(data => {
-        statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
-        statusDiv.style.color = 'green';
-        updateHistory(phone, fullMessage + ' 📎 [fájl]');
-      })
-      .catch(err => {
-        console.error(err);
-        statusDiv.textContent = '❌ Hiba történt a fájlküldés során.';
+      if (!phone || !selectedTemplate) {
+        statusDiv.textContent = '📛 Telefonszám és sablon kiválasztása kötelező.';
         statusDiv.style.color = 'crimson';
-      });
-  } else {
-    // csak szöveges üzenet → JSON + /send-message
-    fetch('/send-message', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ phone, message: fullMessage }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
-        statusDiv.style.color = 'green';
-        updateHistory(phone, fullMessage);
-      })
-      .catch(err => {
-        console.error(err);
-        statusDiv.textContent = '❌ Hiba történt az üzenetküldés során.';
-        statusDiv.style.color = 'crimson';
-      });
-  }
-});
+        return;
+      }
+
+      statusDiv.textContent = '📤 Üzenet küldése...';
+      statusDiv.style.color = '#777';
+
+      if (type === "text") {
+        const message = document.getElementById('message').value.trim();
+        const fullMessage = name ? `*${name}*\n\n${message}` : message;
+
+        const payload = { phone, message: fullMessage };
+        if (fileInput.files.length > 0) {
+          const formData = new FormData();
+          formData.append('phone', phone);
+          formData.append('message', fullMessage);
+          formData.append('file', fileInput.files[0]);
+
+          fetch('/send-file-message', { method: 'POST', body: formData })
+            .then(r => r.json()).then(d => handleResponse(d, phone, fullMessage + ' 📎'));
+        } else {
+          fetch('/send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).then(r => r.json()).then(d => handleResponse(d, phone, fullMessage));
+        }
+
+      } else if (type === "whatsapp") {
+        const paramInputs = [...document.querySelectorAll('.template-param')];
+        const parameters = paramInputs.map(input => input.value.trim());
+
+        const payload = {
+          phone,
+          template: selectedTemplate,
+          parameters
+        };
+
+        fetch('/send-template-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(r => r.json())
+          .then(d => handleResponse(d, phone, `📌 ${selectedTemplate} (${parameters.join(', ')})`));
+      }
+    });
+
+    function handleResponse(data, phone, logMessage) {
+      statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
+      statusDiv.style.color = 'green';
+      updateHistory(phone, logMessage);
+    }
 
     function updateHistory(phone, message) {
       const li = document.createElement('li');
