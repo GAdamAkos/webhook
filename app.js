@@ -2,6 +2,7 @@ require('dotenv').config();
 const axios = require('axios');
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
@@ -146,6 +147,70 @@ app.post('/send-template', async (req, res) => {
   } catch (error) {
     console.error('❌ Hiba a sablon üzenet küldésekor:', error.response?.data || error.message);
     res.status(500).json({ message: 'Hiba a sablon üzenet küldésekor' });
+  }
+});
+
+const upload = multer({ dest: 'uploads/' });
+
+app.post('/send-file-message', upload.single('file'), async (req, res) => {
+  const { phone, message } = req.body;
+  const phoneNumberId = process.env.PHONE_NUMBER_ID;
+  const accessToken = process.env.ACCESS_TOKEN;
+  const file = req.file;
+
+  if (!phone || !file) {
+    return res.status(400).json({ message: 'Hiányzó telefonszám vagy fájl' });
+  }
+
+  try {
+    // 1. Média feltöltése
+    const mediaUpload = await axios.post(
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/media`,
+      fs.createReadStream(file.path),
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': file.mimetype
+        },
+        params: {
+          messaging_product: 'whatsapp'
+        }
+      }
+    );
+
+    const mediaId = mediaUpload.data.id;
+
+    // 2. Média üzenet küldése
+    const mediaType = file.mimetype.startsWith('image') ? 'image' : 'document';
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: mediaType,
+        [mediaType]: {
+          id: mediaId,
+          caption: message || ''
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log('✅ Média üzenet elküldve:', response.data);
+    res.json({ message: 'Fájl sikeresen elküldve ✅' });
+  } catch (error) {
+    console.error('❌ Média küldési hiba:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Hiba a fájl küldésekor' });
+  } finally {
+    // Fájl törlése a szerverről
+    if (file && file.path) {
+      fs.unlink(file.path, () => {});
+    }
   }
 });
 
