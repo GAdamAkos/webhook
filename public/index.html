@@ -275,8 +275,14 @@
       const selectedTemplate = templateSelect.value;
       const fileInput = document.getElementById('file');
 
-      if (!phone || !selectedTemplate) {
-        statusDiv.textContent = '📛 Telefonszám és sablon kiválasztása kötelező.';
+      if (!phone) {
+        statusDiv.textContent = '📛 Kérlek, add meg a telefonszámot.';
+        statusDiv.style.color = 'crimson';
+        return;
+      }
+
+      if (type === 'whatsapp' && !selectedTemplate) {
+        statusDiv.textContent = '📛 WhatsApp sablon típusnál kötelező sablont választani.';
         statusDiv.style.color = 'crimson';
         return;
       }
