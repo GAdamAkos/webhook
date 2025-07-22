@@ -349,8 +349,8 @@ app.get('/templates', (req, res) => {
     'hello_world',
     'rendeles_megerosites',
     'ugyfelszolgalat_valasz',
-    'emlekezteto_fizetesrol'
-    'conv_start'
+    'emlekezteto_fizetesrol',
+    'conv_start',
     'elso_sablon'
   ];
 
