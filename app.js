@@ -149,7 +149,14 @@ app.post('/send-template', async (req, res) => {
 });
 
 // Webhook POST - üzenet és kontakt mentése
-app.post('/webhook', (req, res) => {
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads'))); // Ha még nem volt
+fs.mkdirSync(path.join(__dirname, 'public/uploads'), { recursive: true });   // Biztos, hogy létezik a mappa
+
+app.post('/webhook', async (req, res) => {
   console.log("📨 Webhook kérés érkezett:", JSON.stringify(req.body, null, 2));
 
   const entry = req.body.entry?.[0];
@@ -188,11 +195,50 @@ app.post('/webhook', (req, res) => {
   const messages = value?.messages;
   if (messages) {
     const message = messages[0];
-    const messageBody = message.text?.body || '';
     const messageType = message.type;
-    const timestamp = new Date().toISOString();
     const wa_message_id = message.id;
+    const timestamp = new Date().toISOString();
 
+    let messageBody = '';
+
+    // --- 🎯 KEZELÉS: Kép vagy dokumentum ---
+    if (messageType === 'image' || messageType === 'document') {
+      const mediaId = message[messageType]?.id;
+      const accessToken = process.env.ACCESS_TOKEN;
+
+      try {
+        const mediaInfo = await axios.get(`https://graph.facebook.com/v19.0/${mediaId}`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        const mediaUrl = mediaInfo.data.url;
+        const mediaResponse = await axios.get(mediaUrl, {
+          responseType: 'stream',
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        const ext = messageType === 'image' ? '.jpg' : path.extname(message.document?.filename || '.bin');
+        const fileName = `${messageType}_${Date.now()}${ext}`;
+        const filePath = path.join(__dirname, 'public/uploads', fileName);
+        const fileUrl = `/uploads/${fileName}`;
+        const writer = fs.createWriteStream(filePath);
+        mediaResponse.data.pipe(writer);
+
+        messageBody = fileUrl;
+
+        console.log(`📁 ${messageType} fájl mentve: ${fileUrl}`);
+      } catch (err) {
+        console.error(`❌ Hiba a(z) ${messageType} letöltésénél:`, err.response?.data || err.message);
+        messageBody = '(media letöltési hiba)';
+      }
+    }
+
+    // --- 📝 Szöveges üzenet ---
+    if (messageType === 'text') {
+      messageBody = message.text?.body || '';
+    }
+
+    // --- 🔽 Mentés adatbázisba ---
     db.get('SELECT id FROM contacts WHERE wa_id = ?', [wa_id], (err, row) => {
       if (err || !row) {
         console.error('❌ Nem található a kontakt az adatbázisban:', err);
@@ -216,48 +262,48 @@ app.post('/webhook', (req, res) => {
     });
   }
 
+  // --- 🔁 Státuszok mentése ---
   const statuses = value?.statuses;
   if (statuses) {
-  statuses.forEach(status => {
-    const wa_message_id = status.id;
-    const statusValue = status.status;
-    const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
-    const error = status.errors?.[0];
-    const error_code = error?.code || null;
-    const error_message = error?.message || null;
+    statuses.forEach(status => {
+      const wa_message_id = status.id;
+      const statusValue = status.status;
+      const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
+      const error = status.errors?.[0];
+      const error_code = error?.code || null;
+      const error_message = error?.message || null;
 
-    db.get(
-      'SELECT id FROM messages WHERE wa_message_id = ?',
-      [wa_message_id],
-      (err, msgRow) => {
-        if (err) {
-          console.error(`❌ Hiba üzenet keresésnél (metadata mentéshez):`, err);
-          return;
-        }
-
-        const localMessageId = msgRow?.id || null;
-
-        if (!localMessageId) {
-          console.warn(`⚠️ Nem található üzenet a message_metadata számára (wa_message_id: ${wa_message_id})`);
-          return;
-        }
-
-        db.run(
-          `INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message)
-           VALUES (?, ?, ?, ?, ?)`,
-          [localMessageId, statusValue, timestamp, error_code, error_message],
-          function (err) {
-            if (err) {
-              console.error('❌ DB hiba (message_metadata):', err);
-            } else {
-              console.log(`✅ Status mentve: ${statusValue} (msg_id=${localMessageId})`);
-            }
+      db.get(
+        'SELECT id FROM messages WHERE wa_message_id = ?',
+        [wa_message_id],
+        (err, msgRow) => {
+          if (err) {
+            console.error(`❌ Hiba üzenet keresésnél (metadata mentéshez):`, err);
+            return;
           }
-        );
-      }
-    );
-  });
-}
+
+          const localMessageId = msgRow?.id || null;
+          if (!localMessageId) {
+            console.warn(`⚠️ Nem található üzenet a message_metadata számára (wa_message_id: ${wa_message_id})`);
+            return;
+          }
+
+          db.run(
+            `INSERT INTO message_metadata (message_id, status, timestamp, error_code, error_message)
+             VALUES (?, ?, ?, ?, ?)`,
+            [localMessageId, statusValue, timestamp, error_code, error_message],
+            function (err) {
+              if (err) {
+                console.error('❌ DB hiba (message_metadata):', err);
+              } else {
+                console.log(`✅ Status mentve: ${statusValue} (msg_id=${localMessageId})`);
+              }
+            }
+          );
+        }
+      );
+    });
+  }
 
   res.sendStatus(200);
 });
