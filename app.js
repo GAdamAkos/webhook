@@ -38,6 +38,18 @@ db.serialize(() => {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS sent_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone TEXT,
+      type TEXT,
+      content TEXT,
+      timestamp TEXT,
+      media_url TEXT,
+      wa_message_id TEXT UNIQUE
+    )
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS message_metadata (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       message_id INTEGER,
@@ -75,11 +87,6 @@ app.post('/send-message', async (req, res) => {
   const phoneNumberId = process.env.PHONE_NUMBER_ID;
   const accessToken = process.env.ACCESS_TOKEN;
 
-  console.log('🚩 Access Token:', process.env.ACCESS_TOKEN);
-  console.log('🚩 All env vars:', process.env);
-
-  console.log('Access token:', accessToken);  // <--- Itt a log
-
   if (!phone || !message) {
     return res.status(400).json({ message: 'Hiányzó adat (telefonszám vagy üzenet)' });
   }
@@ -103,7 +110,24 @@ app.post('/send-message', async (req, res) => {
         },
       }
     );
+
     console.log('✅ Üzenet elküldve:', response.data);
+
+    // 💾 Mentés az adatbázisba
+    if (response.data.messages && response.data.messages[0]?.id) {
+      await db.run(
+        `INSERT INTO sent_messages (wa_message_id, phone, type, content, timestamp)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          response.data.messages[0].id,
+          phone,
+          'text',
+          message,
+          new Date().toISOString()
+        ]
+      );
+    }
+
     res.json({ message: 'Üzenet sikeresen elküldve ✅' });
   } catch (error) {
     console.error('❌ Hiba az üzenetküldés során:', error.response?.data || error.message);
@@ -143,6 +167,23 @@ app.post('/send-template', async (req, res) => {
     );
 
     console.log('✅ Sablon üzenet elküldve:', response.data);
+
+    // 💾 Mentés a sent_messages táblába
+    if (response.data.messages && response.data.messages[0]?.id) {
+      await db.run(
+        `INSERT INTO sent_messages (wa_message_id, phone, type, content, timestamp, media_url)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          response.data.messages[0].id,
+          phone,
+          'template',
+          templateName,
+          new Date().toISOString(),
+          null  // nincs media_url
+        ]
+      );
+    }
+
     res.json({ message: 'Sablon üzenet sikeresen elküldve ✅' });
   } catch (error) {
     console.error('❌ Hiba a sablon üzenet küldésekor:', error.response?.data || error.message);
@@ -202,6 +243,23 @@ app.post('/send-file-message', upload.single('file'), async (req, res) => {
     );
 
     console.log('✅ Média üzenet elküldve:', response.data);
+
+    // 3. 💾 Mentés a sent_messages táblába
+    if (response.data.messages && response.data.messages[0]?.id) {
+      await db.run(
+        `INSERT INTO sent_messages (wa_message_id, phone, type, content, timestamp, media_url)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          response.data.messages[0].id,
+          phone,
+          mediaType,
+          message || '',
+          new Date().toISOString(),
+          `https://graph.facebook.com/v19.0/${mediaId}` // opcionális URL hivatkozás
+        ]
+      );
+    }
+
     res.json({ message: 'Fájl sikeresen elküldve ✅' });
   } catch (error) {
     console.error('❌ Média küldési hiba:', error.response?.data || error.message);
@@ -428,6 +486,16 @@ app.get('/message-metadata', (req, res) => {
     if (err) {
       console.error('❌ Hiba a message_metadata lekérdezésekor:', err);
       return res.sendStatus(500);
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/sent-messages', (req, res) => {
+  db.all(`SELECT * FROM sent_messages ORDER BY timestamp DESC`, [], (err, rows) => {
+    if (err) {
+      console.error('❌ Hiba az üzenetek lekérdezésénél:', err.message);
+      return res.status(500).json({ message: 'Adatbázis hiba' });
     }
     res.json(rows);
   });
