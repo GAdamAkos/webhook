@@ -344,6 +344,19 @@ app.get('/download-db', (req, res) => {
   });
 });
 
+app.get('/templates', (req, res) => {
+  const approvedTemplates = [
+    'hello_world',
+    'rendeles_megerosites',
+    'ugyfelszolgalat_valasz',
+    'emlekezteto_fizetesrol'
+    'conv_start'
+    'elso_sablon'
+  ];
+
+  res.json(approvedTemplates);
+});
+
 // Szerver indítása
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Szerver fut a http://0.0.0.0:${port} címen`);
