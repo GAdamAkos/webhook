@@ -59,6 +59,11 @@
       border-radius: 5px;
       margin-left: 0.5rem;
     }
+    .message-body img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -150,7 +155,15 @@
         card.innerHTML = `
           <div class="message-header">${msg.Name || '👤 Ismeretlen'} <span class="type">${msg.Type}</span></div>
           <div class="meta">📱 ${msg.Phone_number} – 🕒 ${msg.Received_at}</div>
-          <div class="message-body">${msg.Body || '<em>(nincs tartalom)</em>'}</div>
+          <div class="message-body">
+            ${
+              msg.Type === 'image' && msg.Body
+                ? `<img src="${msg.Body}" alt="Bejövő kép" />`
+                : msg.Type === 'document' && msg.Body
+                  ? `<a href="${msg.Body}" target="_blank">📎 Dokumentum megnyitása</a>`
+                  : msg.Body || '<em>(nincs tartalom)</em>'
+            }
+          </div>
         `;
         container.appendChild(card);
       });
