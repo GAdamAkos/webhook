@@ -150,10 +150,6 @@ app.post('/send-template', async (req, res) => {
 });
 
 // Webhook POST - üzenet és kontakt mentése
-const path = require('path');
-const axios = require('axios');
-
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads'))); // Ha még nem volt
 fs.mkdirSync(path.join(__dirname, 'public/uploads'), { recursive: true });   // Biztos, hogy létezik a mappa
 
 app.post('/webhook', async (req, res) => {
