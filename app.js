@@ -150,7 +150,6 @@ app.post('/send-template', async (req, res) => {
 });
 
 // Webhook POST - üzenet és kontakt mentése
-const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 
