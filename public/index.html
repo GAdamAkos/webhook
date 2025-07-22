@@ -201,11 +201,7 @@
       "Küldöm, amit megbeszéltünk.": "Küldöm, amit megbeszéltünk."
     };
 
-    const whatsappTemplates = {
-      "hello_world": ["név"],
-      "conv_start": ["termék neve", "ár"],
-      "elso_sablon": ["időpont", "helyszín", "kapcsolattartó"]
-    };
+    let whatsappTemplates = {}; // majd dinamikusan töltjük
 
     const templateTypeSelect = document.getElementById('templateType');
     const templateSelect = document.getElementById('template');
@@ -237,12 +233,26 @@
       }
     }
 
-    templateTypeSelect.addEventListener('change', updateTemplateOptions);
     document.addEventListener('DOMContentLoaded', () => {
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme) document.body.setAttribute('data-theme', savedTheme);
+
+      fetch('/available-templates')
+        .then(res => res.json())
+        .then(data => {
+          whatsappTemplates = data;
+          updateTemplateOptions();
+        })
+        .catch(err => {
+          console.error('❌ Nem sikerült sablonokat lekérni:', err);
+          statusDiv.textContent = 'Nem sikerült betölteni a sablonokat.';
+          statusDiv.style.color = 'crimson';
+        });
+
       updateTemplateOptions();
     });
+
+    templateTypeSelect.addEventListener('change', updateTemplateOptions);
 
     templateSelect.addEventListener('change', () => {
       const type = templateTypeSelect.value;
@@ -254,7 +264,7 @@
         templateParamsDiv.innerHTML = "";
         whatsappTemplates[selected].forEach((param, i) => {
           const label = document.createElement('label');
-          label.textContent = `Paraméter ${i + 1} – ${param}:`;
+          label.textContent = `Paraméter ${i + 1}:`;
 
           const input = document.createElement('input');
           input.type = 'text';
