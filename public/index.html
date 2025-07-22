@@ -237,14 +237,17 @@
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme) document.body.setAttribute('data-theme', savedTheme);
 
-      fetch('/templates')
+      fetch('/available-templates')
         .then(res => res.json())
-        .then(templates => {
-          whatsappTemplates = {};
-          templates.forEach(name => {
-            // paraméterek: a sablontól függően írd át
-            whatsappTemplates[name] = []; 
-      });
+        .then(data => {
+          whatsappTemplates = data;
+          updateTemplateOptions(); // sablonok dropdown feltöltése
+        })
+        .catch(err => {
+          console.error('❌ Nem sikerült sablonokat lekérni:', err);
+          statusDiv.textContent = 'Nem sikerült betölteni a sablonokat.';
+          statusDiv.style.color = 'crimson';
+        });
     
     updateTemplateOptions();
   })
