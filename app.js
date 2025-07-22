@@ -380,9 +380,6 @@ app.get('/available-templates', async (req, res) => {
   }
 });
 
-  res.json(approvedTemplates);
-});
-
 // Szerver indítása
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Szerver fut a http://0.0.0.0:${port} címen`);
