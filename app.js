@@ -85,18 +85,18 @@ app.get('/webhook', (req, res) => {
 });
 
 app.get('/available-templates', async (req, res) => {
-    const phoneNumberId = process.env.PHONE_NUMBER_ID;
+    const wabaId = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
     const accessToken = process.env.ACCESS_TOKEN;
 
-    console.log('📞 Lekérdezett PHONE_NUMBER_ID:', phoneNumberId);
+    console.log('🏢 Lekérdezett WABA_ID:', wabaId);
 
-    if (!phoneNumberId || !accessToken) {
-        return res.status(500).json({ error: 'PHONE_NUMBER_ID vagy ACCESS_TOKEN hiányzik a környezeti változók közül.' });
+    if (!wabaId || !accessToken) {
+        return res.status(500).json({ error: 'WHATSAPP_BUSINESS_ACCOUNT_ID vagy ACCESS_TOKEN hiányzik.' });
     }
 
     try {
         const response = await axios.get(
-            `https://graph.facebook.com/v19.0/${phoneNumberId}/message_templates`,
+            `https://graph.facebook.com/v19.0/${wabaId}/message_templates`,
             {
                 headers: {
                     Authorization: `Bearer ${accessToken}`
@@ -104,21 +104,31 @@ app.get('/available-templates', async (req, res) => {
             }
         );
 
-    // Átalakítás: sablon neve → paraméter helyőrzők
-    const simplified = {};
-    response.data.data.forEach(t => {
-      const components = t.components || [];
-      const body = components.find(c => c.type === 'BODY');
-      const text = body?.text || '';
-      const placeholders = [...text.matchAll(/{{(\d+)}}/g)].map(match => `Paraméter ${match[1]}`);
-      simplified[t.name] = placeholders;
-    });
+        // Itt lehet feldolgozni a választ:
+        const templates = response.data.data || [];
 
-    res.json(simplified);
-  } catch (error) {
-    console.error('❌ Hiba a sablonok lekérésénél:', error.response?.data || error.message);
-    res.status(500).json({ message: 'Nem sikerült lekérni a sablonokat.' });
-  }
+        const simplified = {};
+        templates.forEach(tpl => {
+            // Ha vannak paraméterek, jelenítsük meg őket is (pl. body text placeholders)
+            const params = [];
+            const components = tpl.components || [];
+            const body = components.find(c => c.type === 'BODY');
+            if (body && body.text) {
+                const matches = body.text.match(/\{\{\d+\}\}/g) || [];
+                for (let i = 0; i < matches.length; i++) {
+                    params.push(`Paraméter ${i + 1}`);
+                }
+            }
+
+            simplified[tpl.name] = params;
+        });
+
+        res.json(simplified);
+
+    } catch (error) {
+        console.error('❌ Hiba a sablonok lekérésénél:', error.response?.data || error.message);
+        res.status(500).json({ error: error.response?.data || 'Ismeretlen hiba' });
+    }
 });
 
 app.post('/send-message', async (req, res) => {
