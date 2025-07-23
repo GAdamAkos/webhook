@@ -185,7 +185,7 @@ app.post('/send-message', async (req, res) => {
 });
 
 app.post('/send-template', async (req, res) => {
-    const { phone, templateName, languageCode = 'hu' } = req.body;
+    const { phone, templateName, languageCode = 'hu', parameters = [] } = req.body;
     const phoneNumberId = process.env.PHONE_NUMBER_ID;
     const accessToken = process.env.ACCESS_TOKEN;
 
@@ -202,22 +202,28 @@ app.post('/send-template', async (req, res) => {
                 type: 'template',
                 template: {
                     name: templateName,
-                    language: {
-                        code: languageCode,
-                    },
-                },
+                    language: { code: languageCode },
+                    components: [
+                        {
+                            type: 'body',
+                            parameters: parameters.map(p => ({
+                                type: 'text',
+                                text: p
+                            }))
+                        }
+                    ]
+                }
             },
             {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json',
-                },
+                }
             }
         );
 
         console.log('✅ Sablon üzenet elküldve:', response.data);
 
-        // 💾 Mentés a sent_messages táblába
         if (response.data.messages && response.data.messages[0]?.id) {
             await db.run(
                 `INSERT INTO sent_messages (wa_message_id, phone, type, content, timestamp, media_url)
@@ -228,14 +234,20 @@ app.post('/send-template', async (req, res) => {
                     'template',
                     templateName,
                     new Date().toISOString(),
-                    null  // nincs media_url
+                    null
                 ]
             );
         }
 
         res.json({ message: 'Sablon üzenet sikeresen elküldve ✅' });
     } catch (error) {
-        console.error('❌ Hiba a sablon üzenet küldésekor:', error.response?.data || error.message);
+        console.error('❌ Hiba a sablon üzenet küldésekor:');
+        if (error.response) {
+            console.error('Status:', error.response.status);
+            console.error('Data:', JSON.stringify(error.response.data, null, 2));
+        } else {
+            console.error('Error:', error.message);
+        }
         res.status(500).json({ message: 'Hiba a sablon üzenet küldésekor' });
     }
 });
