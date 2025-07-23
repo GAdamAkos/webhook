@@ -1,12 +1,5 @@
 📂 Adatbázis fájl helye: C:\Users\adamk\OneDrive\Asztali gép\projekt2\webhook-main\whatsapp_messages.db
 ✅ Adatbázis táblák készen állnak
 🚀 Szerver fut a http://0.0.0.0:3000 címen
-📞 Lekérdezett PHONE_NUMBER_ID: 675376605666287
-❌ Hiba a sablonok lekérésénél: {
-  error: {
-    message: '(#100) Tried accessing nonexisting field (message_templates) on node type (WhatsAppBusinessPhoneNumber)',
-    type: 'OAuthException',
-    code: 100,
-    fbtrace_id: 'Aayv_LWjqzBA8UoM8aTQNSO'
-  }
-}
+🏢 Lekérdezett WABA_ID: 2628412687500440
+🏢 Lekérdezett WABA_ID: 2628412687500440
