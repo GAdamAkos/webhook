@@ -249,6 +249,16 @@ app.post('/send-file-message', upload.single('file'), async (req, res) => {
             }
         );
 
+        const sentMediaDir = path.join(__dirname, 'public/sent_media');
+            fs.mkdirSync(sentMediaDir, { recursive: true });
+            
+            const newFileName = `${Date.now()}_${file.originalname}`;
+            const newFilePath = path.join(sentMediaDir, newFileName);
+            
+            await fs.promises.rename(file.path, newFilePath);
+            
+            const mediaUrl = `/sent_media/${newFileName}`;
+
         console.log('✅ Média üzenet elküldve:', response.data);
 
         // 3. 💾 Mentés a sent_messages táblába
