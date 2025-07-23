@@ -7,15 +7,6 @@
     type: 'GraphMethodException',
     code: 100,
     error_subcode: 33,
-    fbtrace_id: 'APzT4hBkTXfxPBJ3UIX0GeZ'
-  }
-}
-❌ Hiba a sablonok lekérésénél: {
-  error: {
-    message: "Unsupported get request. Object with ID 'undefined' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api",
-    type: 'GraphMethodException',
-    code: 100,
-    error_subcode: 33,
-    fbtrace_id: 'AHR1beyJMjxctKPy7Vd9cP8'
+    fbtrace_id: 'AkYnFKTjDV16htYtEph0P6K'
   }
 }
