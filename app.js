@@ -85,18 +85,22 @@ app.get('/webhook', (req, res) => {
 });
 
 app.get('/available-templates', async (req, res) => {
-  const accessToken = process.env.ACCESS_TOKEN;
-  const businessId = process.env.BUSINESS_ID;
+    const phoneNumberId = process.env.PHONE_NUMBER_ID;
+    const accessToken = process.env.ACCESS_TOKEN;
 
-  try {
-    const response = await axios.get(
-      `https://graph.facebook.com/v19.0/${businessId}/message_templates`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
+    if (!phoneNumberId || !accessToken) {
+        return res.status(500).json({ error: 'PHONE_NUMBER_ID vagy ACCESS_TOKEN hiányzik a környezeti változók közül.' });
+    }
+
+    try {
+        const response = await axios.get(
+            `https://graph.facebook.com/v19.0/${phoneNumberId}/message_templates`,
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            }
+        );
 
     // Átalakítás: sablon neve → paraméter helyőrzők
     const simplified = {};
