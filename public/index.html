@@ -1,260 +1,192 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WhatsApp Üzenetküldő</title>
-  <style>
-    :root {
-      --bg: #ffffff;
-      --text: #111;
-      --accent: #26a69a;
-      --input: #f0f0f0;
-      --border: #ccc;
-      --shadow: rgba(0,0,0,0.1);
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WhatsApp Üzenetküldő</title>
+<style>
+  /* --- Design CSS az első kódból --- */
+  :root {
+    --accent: #26a69a;
+    --text: #111;
+    --bg-light-start: #ffffff;
+    --bg-light-end: #e0f7f5;
+    --bg-dark-start: #2c2c2c;
+    --bg-dark-end: #1a4034;
+  }
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #1e1e1e;
-        --text: #eee;
-        --accent: #26a69a;
-        --input: #2c2c2c;
-        --border: #444;
-        --shadow: rgba(0,0,0,0.7);
-      }
-    }
+  [data-theme="light"] {
+    --bg-start: var(--bg-light-start);
+    --bg-end: var(--bg-light-end);
+    --text: #111;
+    --border: #ccc;
+    --input-bg: #f0f0f0;
+  }
+  [data-theme="dark"] {
+    --bg-start: var(--bg-dark-start);
+    --bg-end: var(--bg-dark-end);
+    --text: #eee;
+    --border: #444;
+    --input-bg: #2c2c2c;
+  }
 
-    [data-theme="dark"] {
-      --bg: #1e1e1e;
-      --text: #eee;
-      --input: #2c2c2c;
-      --border: #444;
-      --shadow: rgba(0,0,0,0.7);
-    }
+  body {
+    background: var(--bg-start);
+    color: var(--text);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 2rem;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
 
-    [data-theme="light"] {
-      --bg: #ffffff;
-      --text: #111;
-      --input: #f0f0f0;
-      --border: #ccc;
-      --shadow: rgba(0,0,0,0.1);
-    }
+  .container {
+    background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
+    border-radius: 1.25rem;
+    box-shadow: 0 12px 30px rgba(38, 166, 154, 0.25);
+    padding: 2.5rem;
+    max-width: 600px;
+    margin: 0 auto;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+  }
 
-    * {
-      box-sizing: border-box;
-    }
+  [data-theme="dark"] .container {
+    box-shadow: 0 12px 30px rgba(38, 166, 154, 0.8);
+  }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 2rem 1rem;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-      transition: background 0.3s, color 0.3s;
-    }
+  h1 {
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 1rem;
+  }
 
-    .container {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      padding: 2rem 2.5rem;
-      border-radius: 1rem;
-      box-shadow: 0 10px 25px var(--shadow);
-      max-width: 600px;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-    }
+  label {
+    display: block;
+    margin-top: 1rem;
+    font-weight: 600;
+  }
 
-    h1 {
-      text-align: center;
-      color: var(--accent);
-      margin-bottom: 1.5rem;
-      font-weight: 700;
-      font-size: 1.8rem;
-      user-select: none;
-    }
+  input[type="text"], input[type="file"], select, textarea {
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 0.3rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background-color: var(--input-bg);
+    color: var(--text);
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 
-    label {
-      margin-top: 1.25rem;
-      display: block;
-      font-weight: 600;
-      font-size: 1rem;
-      user-select: none;
-    }
+  textarea {
+    resize: vertical;
+  }
 
-    input[type="text"],
-    textarea,
-    select,
-    input[type="file"] {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      margin-top: 0.4rem;
-      border: 1.5px solid var(--border);
-      border-radius: 0.6rem;
-      background: var(--input);
-      color: var(--text);
-      font-size: 1rem;
-      transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-      font-family: inherit;
-    }
+  button {
+    width: 100%;
+    margin-top: 1.5rem;
+    padding: 0.75rem;
+    border-radius: 1.5rem;
+    border: none;
+    background-color: var(--accent);
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
 
-    input[type="text"]:focus,
-    textarea:focus,
-    select:focus,
-    input[type="file"]:focus {
-      border-color: var(--accent);
-      outline: none;
-      box-shadow: 0 0 8px var(--accent);
-      background: var(--bg);
-    }
+  button:hover:not(:disabled) {
+    background-color: #00796b;
+  }
 
-    textarea {
-      resize: vertical;
-      min-height: 100px;
-      font-family: inherit;
-    }
+  button:disabled {
+    background-color: #a2d2cd;
+    cursor: not-allowed;
+  }
 
-    input[type="file"] {
-      padding: 0.5rem 0.75rem;
-    }
+  #status {
+    margin-top: 1rem;
+    font-weight: 600;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  #status.show {
+    opacity: 1;
+  }
 
-    button {
-      width: 100%;
-      padding: 0.85rem;
-      margin-top: 2rem;
-      font-size: 1.1rem;
-      background: var(--accent);
-      color: white;
-      border: none;
-      border-radius: 0.75rem;
-      cursor: pointer;
-      font-weight: 700;
-      transition: background-color 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
-      user-select: none;
-    }
+  .history {
+    margin-top: 2rem;
+  }
 
-    button:hover:not(:disabled) {
-      background-color: #00796b;
-      box-shadow: 0 5px 15px rgba(0, 121, 107, 0.5);
-    }
+  .history h2 {
+    margin-bottom: 0.5rem;
+  }
 
-    button:disabled {
-      background-color: #a7d3cc;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
+  .history ul {
+    list-style: none;
+    padding-left: 0;
+    max-height: 150px;
+    overflow-y: auto;
+  }
 
-    #status {
-      margin-top: 1.25rem;
-      font-weight: 600;
-      text-align: center;
-      min-height: 1.4em;
-      user-select: none;
-      transition: opacity 0.3s ease;
-    }
+  .history li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
 
-    .history {
-      margin-top: 2.5rem;
-      user-select: none;
-    }
+  .theme-toggle {
+    text-align: right;
+    margin-bottom: 1rem;
+  }
 
-    .history h2 {
-      font-size: 1.2rem;
-      margin-bottom: 0.75rem;
-      color: var(--accent);
-      font-weight: 700;
-    }
+  .theme-toggle button {
+    background: none;
+    border: 2px solid var(--accent);
+    border-radius: 1.5rem;
+    padding: 0.3rem 1rem;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 
-    .history ul {
-      list-style: none;
-      padding-left: 0;
-      max-height: 220px;
-      overflow-y: auto;
-      border: 1px solid var(--border);
-      border-radius: 0.6rem;
-      background: var(--input);
-      box-shadow: inset 0 0 8px rgba(0,0,0,0.05);
-    }
+  .theme-toggle button:hover {
+    background-color: var(--accent);
+    color: white;
+  }
 
-    .history li {
-      padding: 0.6rem 1rem;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.95rem;
-      color: var(--text);
-    }
+  #filePreview {
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
 
-    .history li:last-child {
-      border-bottom: none;
-    }
+  #filePreview img {
+    max-height: 60px;
+    max-width: 60px;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+  }
 
-    .theme-toggle {
-      text-align: right;
-      margin-bottom: 1.5rem;
-      user-select: none;
-    }
-
-    .theme-toggle button {
-      background: none;
-      border: none;
-      color: var(--accent);
-      cursor: pointer;
-      font-weight: 700;
-      font-size: 1rem;
-      transition: color 0.3s ease;
-      padding: 0;
-    }
-
-    .theme-toggle button:hover {
-      color: #00796b;
-    }
-
-    #templateParams label {
-      margin-top: 1rem;
-      font-weight: 600;
-      display: block;
-      user-select: none;
-    }
-
-    #templateParams input {
-      margin-top: 0.3rem;
-      padding: 0.6rem 1rem;
-      font-size: 1rem;
-      border: 1.5px solid var(--border);
-      border-radius: 0.6rem;
-      background: var(--input);
-      color: var(--text);
-      width: 100%;
-      transition: border-color 0.2s ease-in-out;
-      font-family: inherit;
-    }
-
-    #templateParams input:focus {
-      border-color: var(--accent);
-      outline: none;
-      box-shadow: 0 0 6px var(--accent);
-      background: var(--bg);
-    }
-
-    @media (max-width: 450px) {
-      body {
-        padding: 1rem 0.5rem;
-      }
-      .container {
-        padding: 1.5rem 1.5rem;
-        max-width: 100%;
-      }
-    }
-  </style>
+  .template-param {
+    margin-top: 0.3rem;
+  }
+</style>
 </head>
 <body>
-  <div class="container" id="app">
+  <div class="container" id="app" data-theme="light">
     <div class="theme-toggle">
-      <button onclick="toggleTheme()">🌓 Téma váltása</button>
+      <button id="themeToggleBtn">🌙 Sötét mód</button>
     </div>
 
     <h1>📨 WhatsApp Üzenetküldő</h1>
@@ -283,6 +215,7 @@
 
     <label for="file">Fájl vagy kép csatolása:</label>
     <input type="file" id="file" accept="image/*,application/pdf" />
+    <div id="filePreview"></div>
 
     <button id="sendBtn">Üzenet küldése</button>
 
@@ -295,6 +228,7 @@
   </div>
 
   <script>
+    // Állandó sablonok
     const textTemplates = {
       "Szia! Hogy vagy?": "Szia! Hogy vagy?",
       "Kérlek, hívj vissza!": "Kérlek, hívj vissza!",
@@ -303,6 +237,7 @@
 
     let whatsappTemplates = {}; // majd dinamikusan töltjük
 
+    // DOM elemek
     const templateTypeSelect = document.getElementById('templateType');
     const templateSelect = document.getElementById('template');
     const messageBox = document.getElementById('message');
@@ -310,147 +245,214 @@
     const sendBtn = document.getElementById('sendBtn');
     const statusDiv = document.getElementById('status');
     const historyList = document.getElementById('historyList');
+    const fileInput = document.getElementById('file');
+    const filePreview = document.getElementById('filePreview');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const container = document.querySelector('.container');
+    const body = document.body;
+
+    // Téma váltás funkció
+    function updateThemeToggleButton() {
+      const current = body.getAttribute('data-theme') || 'light';
+      if (current === 'dark') {
+        themeToggleBtn.textContent = '🌞 Világos mód';
+      } else {
+        themeToggleBtn.textContent = '🌙 Sötét mód';
+      }
+    }
 
     function toggleTheme() {
-      const current = document.body.getAttribute('data-theme');
+      const current = body.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
-      document.body.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
+      body.setAttribute('data-theme', next);
+      container.setAttribute('data-theme', next);
+      updateThemeToggleButton();
     }
 
-    function updateTemplateOptions() {
-      const type = templateTypeSelect.value;
-      templateSelect.innerHTML = '<option value="">-- Válassz sablont --</option>';
-      messageBox.style.display = type === "text" ? "block" : "none";
-      templateParamsDiv.innerHTML = "";
+    themeToggleBtn.addEventListener('click', toggleTheme);
+    updateThemeToggleButton();
 
-      const templates = type === "text" ? textTemplates : whatsappTemplates;
-      for (const key in templates) {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = key;
-        templateSelect.appendChild(opt);
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme) document.body.setAttribute('data-theme', savedTheme);
-
-      fetch('/available-templates')
-        .then(res => res.json())
-        .then(data => {
-          whatsappTemplates = data;
-          updateTemplateOptions();
-        })
-        .catch(err => {
-          console.error('❌ Nem sikerült sablonokat lekérni:', err);
-          statusDiv.textContent = 'Nem sikerült betölteni a sablonokat.';
-          statusDiv.style.color = 'crimson';
-        });
-
-      updateTemplateOptions();
-    });
-
-    templateTypeSelect.addEventListener('change', updateTemplateOptions);
-
-    templateSelect.addEventListener('change', () => {
-      const type = templateTypeSelect.value;
-      const selected = templateSelect.value;
-
-      if (type === "text") {
-        messageBox.value = textTemplates[selected] || '';
-      } else if (type === "whatsapp" && whatsappTemplates[selected]) {
-        templateParamsDiv.innerHTML = "";
-        whatsappTemplates[selected].forEach((param, i) => {
-          const label = document.createElement('label');
-          label.textContent = `Paraméter ${i + 1}:`;
-
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.name = `param${i}`;
-          input.placeholder = param;
-          input.classList.add('template-param');
-
-          templateParamsDiv.appendChild(label);
-          templateParamsDiv.appendChild(input);
-        });
-      }
-    });
-
-    sendBtn.addEventListener('click', () => {
-      const name = document.getElementById('name').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const type = templateTypeSelect.value;
-      const selectedTemplate = templateSelect.value;
-      const fileInput = document.getElementById('file');
-
-      if (!phone) {
-        statusDiv.textContent = '📛 Kérlek, add meg a telefonszámot.';
-        statusDiv.style.color = 'crimson';
-        return;
-      }
-
-      if (type === 'whatsapp' && !selectedTemplate) {
-        statusDiv.textContent = '📛 WhatsApp sablon típusnál kötelező sablont választani.';
-        statusDiv.style.color = 'crimson';
-        return;
-      }
-
-      statusDiv.textContent = '📤 Üzenet küldése...';
-      statusDiv.style.color = '#777';
-
-      if (type === "text") {
-        const message = document.getElementById('message').value.trim();
-        const fullMessage = name ? `*${name}*\n\n${message}` : message;
-
-        const payload = { phone, message: fullMessage };
-        if (fileInput.files.length > 0) {
-          const formData = new FormData();
-          formData.append('phone', phone);
-          formData.append('message', fullMessage);
-          formData.append('file', fileInput.files[0]);
-
-          fetch('/send-file-message', { method: 'POST', body: formData })
-            .then(r => r.json()).then(d => handleResponse(d, phone, fullMessage + ' 📎'));
-        } else {
-          fetch('/send-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }).then(r => r.json()).then(d => handleResponse(d, phone, fullMessage));
+    // Sablonok feltöltése
+    function loadTemplates() {
+      // Elsőként szöveges sablonok
+      if(templateTypeSelect.value === 'text') {
+        templateSelect.innerHTML = '<option value="">-- Válassz sablont --</option>';
+        for (const key in textTemplates) {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = key;
+          templateSelect.appendChild(opt);
         }
+        templateParamsDiv.innerHTML = '';
+        messageBox.value = '';
+      } else if (templateTypeSelect.value === 'whatsapp') {
+        // API hívás sablonokért
+        fetch('/get-template-list')
+          .then(res => res.json())
+          .then(data => {
+            whatsappTemplates = data.templates || {};
+            templateSelect.innerHTML = '<option value="">-- Válassz sablont --</option>';
+            for (const key in whatsappTemplates) {
+              const opt = document.createElement('option');
+              opt.value = key;
+              opt.textContent = key;
+              templateSelect.appendChild(opt);
+            }
+            templateParamsDiv.innerHTML = '';
+            messageBox.value = '';
+          }).catch(err => {
+            console.error(err);
+            templateSelect.innerHTML = '<option value="">Nem sikerült betölteni</option>';
+          });
+      }
+    }
 
-      } else if (type === "whatsapp") {
-        const paramInputs = [...document.querySelectorAll('.template-param')];
-        const parameters = paramInputs.map(input => input.value.trim());
+    templateTypeSelect.addEventListener('change', loadTemplates);
+    loadTemplates();
 
-        const payload = {
-          phone,
-          template: selectedTemplate,
-          parameters
-        };
-
-        fetch('/send-template-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(r => r.json())
-          .then(d => handleResponse(d, phone, `📌 ${selectedTemplate} (${parameters.join(', ')})`));
+    // Sablon választáskor paraméterek megjelenítése
+    templateSelect.addEventListener('change', () => {
+      const val = templateSelect.value;
+      if(templateTypeSelect.value === 'text') {
+        messageBox.value = textTemplates[val] || '';
+        templateParamsDiv.innerHTML = '';
+      } else if(templateTypeSelect.value === 'whatsapp' && val) {
+        const template = whatsappTemplates[val];
+        if(!template) {
+          templateParamsDiv.innerHTML = '';
+          messageBox.value = '';
+          return;
+        }
+        // Feltételezzük, hogy a template paraméterei egy tömb, pl:
+        // template.parameters = [{name:"firstName"}, {name:"date"}]
+        templateParamsDiv.innerHTML = '';
+        if(template.parameters && template.parameters.length > 0) {
+          template.parameters.forEach(param => {
+            const label = document.createElement('label');
+            label.textContent = `Paraméter: ${param.name}`;
+            label.className = 'template-param';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.dataset.paramName = param.name;
+            input.placeholder = `Írd be a(z) ${param.name} értékét`;
+            templateParamsDiv.appendChild(label);
+            templateParamsDiv.appendChild(input);
+          });
+        }
+        messageBox.value = '';
       }
     });
 
-    function handleResponse(data, phone, logMessage) {
-      statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
-      statusDiv.style.color = 'green';
-      updateHistory(phone, logMessage);
+    // Fájl előnézet megjelenítés
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      filePreview.innerHTML = '';
+      if(!file) return;
+
+      if(file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        filePreview.appendChild(img);
+      } else {
+        filePreview.textContent = `Csatolt fájl: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+      }
+    });
+
+    // Üzenetküldés
+    sendBtn.addEventListener('click', () => {
+      const phone = document.getElementById('phone').value.trim();
+      const name = document.getElementById('name').value.trim();
+      const message = messageBox.value.trim();
+      const templateType = templateTypeSelect.value;
+      const templateName = templateSelect.value;
+
+      if(!phone.match(/^\+36\d{8,9}$/)) {
+        alert('Kérlek, adj meg egy érvényes magyar telefonszámot +36 formátumban!');
+        return;
+      }
+      if(templateType === 'text' && !message) {
+        alert('Az üzenet nem lehet üres!');
+        return;
+      }
+
+      sendBtn.disabled = true;
+      statusDiv.textContent = 'Üzenet küldése folyamatban...';
+      statusDiv.classList.add('show');
+
+      const formData = new FormData();
+      formData.append('phone', phone);
+      formData.append('name', name);
+      formData.append('message', message);
+      formData.append('templateType', templateType);
+      formData.append('templateName', templateName);
+
+      // Ha sablon paraméterek vannak (WhatsApp API), összegyűjtjük
+      if(templateType === 'whatsapp' && templateName) {
+        const paramsInputs = templateParamsDiv.querySelectorAll('input[data-param-name]');
+        const params = {};
+        paramsInputs.forEach(input => {
+          params[input.dataset.paramName] = input.value.trim();
+        });
+        formData.append('parameters', JSON.stringify(params));
+      }
+
+      // Fájl feltöltés
+      const file = fileInput.files[0];
+      if(file) {
+        formData.append('file', file);
+      }
+
+      // API hívás
+      let url;
+      if(file) {
+        url = '/send-file-message';
+      } else if(templateType === 'whatsapp') {
+        url = '/send-template-message';
+      } else {
+        url = '/send-message';
+      }
+
+      fetch(url, {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if(data.success) {
+          statusDiv.textContent = 'Üzenet sikeresen elküldve!';
+          addHistory(phone, message);
+          clearForm();
+        } else {
+          statusDiv.textContent = 'Hiba történt: ' + (data.error || 'Ismeretlen hiba');
+        }
+      })
+      .catch(err => {
+        statusDiv.textContent = 'Hálózati hiba történt.';
+        console.error(err);
+      })
+      .finally(() => {
+        sendBtn.disabled = false;
+        setTimeout(() => {
+          statusDiv.classList.remove('show');
+          statusDiv.textContent = '';
+        }, 4000);
+      });
+    });
+
+    // Előzmények hozzáadása
+    function addHistory(phone, message) {
+      const li = document.createElement('li');
+      li.textContent = `${phone}: ${message}`;
+      historyList.prepend(li);
     }
 
-    function updateHistory(phone, message) {
-      const li = document.createElement('li');
-      const now = new Date().toLocaleTimeString();
-      li.textContent = `[${now}] ${phone} → ${message}`;
-      historyList.prepend(li);
+    // Űrlap törlése
+    function clearForm() {
+      document.getElementById('message').value = '';
+      document.getElementById('file').value = '';
+      document.getElementById('template').value = '';
+      document.getElementById('templateParams').innerHTML = '';
+      document.getElementById('name').value = '';
     }
   </script>
 </body>
