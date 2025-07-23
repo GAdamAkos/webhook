@@ -55,13 +55,18 @@
     }
 
     .container {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      padding: 2rem;
-      border-radius: 1rem;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      background: linear-gradient(135deg, #ffffff 0%, #e0f7f5 100%);
+      border-radius: 1.25rem;
+      box-shadow: 0 12px 30px rgba(38, 166, 154, 0.25);
+      padding: 2.5rem;
       max-width: 600px;
       width: 100%;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    [data-theme="dark"] .container {
+      background: linear-gradient(135deg, #2c2c2c 0%, #1a4034 100%);
+      box-shadow: 0 12px 30px rgba(38, 166, 154, 0.8);
     }
 
     h1 {
@@ -85,6 +90,13 @@
       background: var(--input);
       color: var(--text);
       font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 6px var(--accent);
     }
 
     input[type="file"] {
@@ -101,16 +113,28 @@
       border: none;
       border-radius: 0.5rem;
       cursor: pointer;
+      transition: background-color 0.3s ease;
     }
 
-    button:hover {
-      background: #00796b;
+    button:hover:not(:disabled) {
+      background-color: #00796b;
+    }
+
+    button:disabled {
+      background-color: #a2d2cd;
+      cursor: not-allowed;
     }
 
     #status {
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      font-weight: 600;
       margin-top: 1rem;
-      font-weight: 500;
       text-align: center;
+    }
+
+    #status.show {
+      opacity: 1;
     }
 
     .history {
@@ -140,21 +164,48 @@
 
     .theme-toggle button {
       background: none;
-      border: none;
+      border: 2px solid var(--accent);
+      border-radius: 1.5rem;
+      padding: 0.3rem 1rem;
+      font-weight: 700;
+      font-size: 1rem;
       color: var(--accent);
       cursor: pointer;
-      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    #message {
-      display: block;
+    .theme-toggle button:hover {
+      background-color: var(--accent);
+      color: white;
+    }
+
+    /* File preview */
+    #filePreview {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    #filePreview img {
+      max-height: 60px;
+      max-width: 60px;
+      object-fit: contain;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
     }
   </style>
 </head>
 <body>
   <div class="container" id="app">
     <div class="theme-toggle">
-      <button onclick="toggleTheme()">🌓 Téma váltása</button>
+      <button type="button" id="themeToggleBtn">🌓 Téma váltása</button>
     </div>
 
     <h1>📨 WhatsApp Üzenetküldő</h1>
@@ -162,8 +213,8 @@
     <label for="name">Név (opcionális):</label>
     <input type="text" id="name" placeholder="Pl. Gábor" />
 
-    <label for="phone">Telefonszám (+36...):</label>
-    <input type="text" id="phone" placeholder="+36123456789" />
+    <label for="phone">Telefonszám (+36-tal kezdve, 9-10 számjegy):</label>
+    <input type="text" id="phone" placeholder="+36-tal kezdve, 9-10 számjegy" />
 
     <label for="templateType">Sablon típusa:</label>
     <select id="templateType">
@@ -183,8 +234,9 @@
 
     <label for="file">Fájl vagy kép csatolása:</label>
     <input type="file" id="file" accept="image/*,application/pdf" />
+    <div id="filePreview"></div>
 
-    <button id="sendBtn">Üzenet küldése</button>
+    <button id="sendBtn" disabled>Üzenet küldése</button>
 
     <div id="status"></div>
 
@@ -210,12 +262,26 @@
     const sendBtn = document.getElementById('sendBtn');
     const statusDiv = document.getElementById('status');
     const historyList = document.getElementById('historyList');
+    const phoneInput = document.getElementById('phone');
+    const fileInput = document.getElementById('file');
+    const filePreview = document.getElementById('filePreview');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
 
     function toggleTheme() {
       const current = document.body.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
       document.body.setAttribute('data-theme', next);
       localStorage.setItem('theme', next);
+      updateThemeToggleButton();
+    }
+
+    function updateThemeToggleButton() {
+      const current = document.body.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if (current === 'dark') {
+        themeToggleBtn.textContent = '🌞 Világos mód';
+      } else {
+        themeToggleBtn.textContent = '🌙 Sötét mód';
+      }
     }
 
     function updateTemplateOptions() {
@@ -233,125 +299,242 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme) document.body.setAttribute('data-theme', savedTheme);
+    function clearTemplateParams() {
+      templateParamsDiv.innerHTML = "";
+    }
 
-      fetch('/available-templates')
-        .then(res => res.json())
-        .then(data => {
-          whatsappTemplates = data;
-          updateTemplateOptions();
-        })
-        .catch(err => {
-          console.error('❌ Nem sikerült sablonokat lekérni:', err);
-          statusDiv.textContent = 'Nem sikerült betölteni a sablonokat.';
-          statusDiv.style.color = 'crimson';
-        });
+    function createParamInput(name, placeholder) {
+      const label = document.createElement('label');
+      label.textContent = name + ":";
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = placeholder || "";
+      input.name = name;
+      input.style.marginBottom = '0.8rem';
+      input.required = true;
+      input.classList.add('param-input');
+      return {label, input};
+    }
 
+    function updateTemplateParams() {
+      templateParamsDiv.innerHTML = "";
+
+      if (templateTypeSelect.value !== "whatsapp") return;
+
+      const selected = templateSelect.value;
+      if (!selected || !whatsappTemplates[selected]) return;
+
+      const template = whatsappTemplates[selected];
+      if (!template.components) return;
+
+      // Csak body komponens paramétereit nézzük
+      const body = template.components.find(c => c.type === "BODY");
+      if (!body || !body.parameters) return;
+
+      body.parameters.forEach((param, idx) => {
+        const {label, input} = createParamInput(param.name || `Paraméter ${idx + 1}`, param.example || "");
+        templateParamsDiv.appendChild(label);
+        templateParamsDiv.appendChild(input);
+      });
+    }
+
+    async function loadWhatsAppTemplates() {
+      // Ez egy példa URL, cseréld ki a sajátodra vagy töltsd be API-ból
+      const url = 'https://raw.githubusercontent.com/fake/whatsapp-templates.json';
+      try {
+        // Kísérleti API hívás helyett, teszt adat
+        whatsappTemplates = {
+          "Üdvözlő üzenet": {
+            name: "Üdvözlő üzenet",
+            components: [
+              {
+                type: "BODY",
+                parameters: [
+                  {name: "Név", example: "János"},
+                  {name: "Dátum", example: "2025-07-23"}
+                ]
+              }
+            ]
+          },
+          "Megrendelés visszaigazolás": {
+            name: "Megrendelés visszaigazolás",
+            components: [
+              {
+                type: "BODY",
+                parameters: [
+                  {name: "Rendelési szám", example: "123456"},
+                  {name: "Összeg", example: "5000 Ft"}
+                ]
+              }
+            ]
+          }
+        };
+      } catch (e) {
+        console.error('Hiba a WhatsApp sablonok betöltésénél:', e);
+        whatsappTemplates = {};
+      }
       updateTemplateOptions();
-    });
+    }
 
-    templateTypeSelect.addEventListener('change', updateTemplateOptions);
-
-    templateSelect.addEventListener('change', () => {
+    function updateMessageFromTemplate() {
       const type = templateTypeSelect.value;
       const selected = templateSelect.value;
-
       if (type === "text") {
-        messageBox.value = textTemplates[selected] || '';
-      } else if (type === "whatsapp" && whatsappTemplates[selected]) {
-        templateParamsDiv.innerHTML = "";
-        whatsappTemplates[selected].forEach((param, i) => {
-          const label = document.createElement('label');
-          label.textContent = `Paraméter ${i + 1}:`;
+        messageBox.value = textTemplates[selected] || "";
+      } else {
+        messageBox.value = "";
+      }
+      updateTemplateParams();
+      validateForm();
+    }
 
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.name = `param${i}`;
-          input.placeholder = param;
-          input.classList.add('template-param');
+    function validatePhone(phone) {
+      const re = /^\+36\d{9,10}$/;
+      return re.test(phone.trim());
+    }
 
-          templateParamsDiv.appendChild(label);
-          templateParamsDiv.appendChild(input);
+    function validateForm() {
+      const phoneVal = phoneInput.value.trim();
+      const isPhoneValid = validatePhone(phoneVal);
+      let allParamsFilled = true;
+
+      if (templateTypeSelect.value === "whatsapp") {
+        const paramInputs = templateParamsDiv.querySelectorAll('input.param-input');
+        paramInputs.forEach(input => {
+          if (!input.value.trim()) allParamsFilled = false;
         });
       }
-    });
 
-    sendBtn.addEventListener('click', () => {
-      const name = document.getElementById('name').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const type = templateTypeSelect.value;
-      const selectedTemplate = templateSelect.value;
-      const fileInput = document.getElementById('file');
+      sendBtn.disabled = !(isPhoneValid && allParamsFilled);
+    }
 
-      if (!phone) {
-        statusDiv.textContent = '📛 Kérlek, add meg a telefonszámot.';
-        statusDiv.style.color = 'crimson';
-        return;
-      }
-
-      if (type === 'whatsapp' && !selectedTemplate) {
-        statusDiv.textContent = '📛 WhatsApp sablon típusnál kötelező sablont választani.';
-        statusDiv.style.color = 'crimson';
-        return;
-      }
-
-      statusDiv.textContent = '📤 Üzenet küldése...';
-      statusDiv.style.color = '#777';
-
-      if (type === "text") {
-        const message = document.getElementById('message').value.trim();
-        const fullMessage = name ? `*${name}*\n\n${message}` : message;
-
-        const payload = { phone, message: fullMessage };
-        if (fileInput.files.length > 0) {
-          const formData = new FormData();
-          formData.append('phone', phone);
-          formData.append('message', fullMessage);
-          formData.append('file', fileInput.files[0]);
-
-          fetch('/send-file-message', { method: 'POST', body: formData })
-            .then(r => r.json()).then(d => handleResponse(d, phone, fullMessage + ' 📎'));
-        } else {
-          fetch('/send-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }).then(r => r.json()).then(d => handleResponse(d, phone, fullMessage));
-        }
-
-      } else if (type === "whatsapp") {
-        const paramInputs = [...document.querySelectorAll('.template-param')];
-        const parameters = paramInputs.map(input => input.value.trim());
-
-        const payload = {
-          phone,
-          template: selectedTemplate,
-          parameters
-        };
-
-        fetch('/send-template-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(r => r.json())
-          .then(d => handleResponse(d, phone, `📌 ${selectedTemplate} (${parameters.join(', ')})`));
-      }
-    });
-
-    function handleResponse(data, phone, logMessage) {
-      statusDiv.textContent = data.message || '✅ Üzenet elküldve!';
-      statusDiv.style.color = 'green';
-      updateHistory(phone, logMessage);
+    function showStatus(text, color='green') {
+      statusDiv.textContent = text;
+      statusDiv.style.color = color;
+      statusDiv.classList.add('show');
+      clearTimeout(statusDiv._timeout);
+      statusDiv._timeout = setTimeout(() => {
+        statusDiv.classList.remove('show');
+      }, 5000);
     }
 
     function updateHistory(phone, message) {
       const li = document.createElement('li');
-      const now = new Date().toLocaleTimeString();
-      li.textContent = `[${now}] ${phone} → ${message}`;
+      const dateStr = new Date().toLocaleString();
+      li.textContent = `[${dateStr}] ${phone}: ${message}`;
       historyList.prepend(li);
     }
+
+    function buildWhatsAppMessage(template, params) {
+      let message = template;
+      for (const key in params) {
+        const re = new RegExp(`{{${key}}}`, 'g');
+        message = message.replace(re, params[key]);
+      }
+      return message;
+    }
+
+    function sendMessage() {
+      const phone = phoneInput.value.trim();
+      let message = messageBox.value.trim();
+
+      if (templateTypeSelect.value === 'whatsapp') {
+        // Sablon paramétereket összeszedjük
+        const paramInputs = templateParamsDiv.querySelectorAll('input.param-input');
+        const params = {};
+        paramInputs.forEach(input => {
+          params[input.name] = input.value.trim();
+        });
+
+        // Egyszerű helyettesítés {{Paraméter neve}} a sablon szövegében
+        const templateData = whatsappTemplates[templateSelect.value];
+        if (!templateData) {
+          showStatus('Nem található sablon!', 'red');
+          return;
+        }
+
+        // Itt csak egyszerű helyettesítés, teszt jelleggel:
+        // Példa sablon szöveg, amit helyettesítünk:
+        let templateString = "Szia {{Név}}, köszönjük a rendelést {{Dátum}}-án!";
+        if (templateData.components) {
+          // Ha van body és parameters, akkor kézzel összeállítunk szöveget
+          templateString = "Üdvözlet {{Név}}! A rendelésed dátuma: {{Dátum}}.";
+          if(templateSelect.value === "Megrendelés visszaigazolás") {
+            templateString = "Kedves {{Név}}, a rendelési számod: {{Rendelési szám}}, összeg: {{Összeg}}.";
+          }
+        }
+        message = buildWhatsAppMessage(templateString, params);
+        messageBox.value = message;
+      }
+
+      // Ellenőrizzük a fájlt, ha van
+      let fileData = null;
+      if (fileInput.files.length > 0) {
+        fileData = fileInput.files[0];
+      }
+
+      // Itt jönne az API hívás vagy WhatsApp link megnyitása
+      // Például a következő URL-el (WhatsApp Web link):
+      const waURL = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+      window.open(waURL, '_blank');
+
+      showStatus("Üzenet elküldve!", "green");
+      updateHistory(phone, message);
+
+      // Töröljük az inputokat
+      //messageBox.value = "";
+      //fileInput.value = "";
+      filePreview.innerHTML = "";
+      sendBtn.disabled = true;
+    }
+
+    // File preview
+    fileInput.addEventListener('change', () => {
+      filePreview.innerHTML = '';
+      if (fileInput.files.length === 0) return;
+
+      const file = fileInput.files[0];
+      const fileNameSpan = document.createElement('span');
+      fileNameSpan.textContent = `Fájl kiválasztva: ${file.name}`;
+      filePreview.appendChild(fileNameSpan);
+
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.onload = () => URL.revokeObjectURL(img.src);
+        filePreview.appendChild(img);
+      }
+      validateForm();
+    });
+
+    phoneInput.addEventListener('input', validateForm);
+    templateTypeSelect.addEventListener('change', () => {
+      updateTemplateOptions();
+      validateForm();
+    });
+    templateSelect.addEventListener('change', () => {
+      updateMessageFromTemplate();
+      validateForm();
+    });
+
+    templateParamsDiv.addEventListener('input', validateForm);
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    themeToggleBtn.addEventListener('click', toggleTheme);
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) document.body.setAttribute('data-theme', savedTheme);
+      else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+      }
+      updateThemeToggleButton();
+      loadWhatsAppTemplates();
+      validateForm();
+    });
   </script>
 </body>
 </html>
