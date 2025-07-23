@@ -359,42 +359,84 @@
     });
 
     // Üzenetküldés
-    sendBtn.addEventListener('click', () => {
-      const phone = document.getElementById('phone').value.trim();
-      const name = document.getElementById('name').value.trim();
-      const message = messageBox.value.trim();
-      const templateType = templateTypeSelect.value;
-      const templateName = templateSelect.value;
-
-      if(!phone.match(/^\+36\d{8,9}$/)) {
-        alert('Kérlek, adj meg egy érvényes magyar telefonszámot +36 formátumban!');
-        return;
-      }
-      if(templateType === 'text' && !message) {
-        alert('Az üzenet nem lehet üres!');
-        return;
-      }
-
-      sendBtn.disabled = true;
-      statusDiv.textContent = 'Üzenet küldése folyamatban...';
-      statusDiv.classList.add('show');
-
-      const formData = new FormData();
-      formData.append('phone', phone);
-      formData.append('name', name);
-      formData.append('message', message);
-      formData.append('templateType', templateType);
-      formData.append('templateName', templateName);
-
-      // Ha sablon paraméterek vannak (WhatsApp API), összegyűjtjük
-      if(templateType === 'whatsapp' && templateName) {
-        const paramsInputs = templateParamsDiv.querySelectorAll('input[data-param-name]');
-        const params = {};
-        paramsInputs.forEach(input => {
-          params[input.dataset.paramName] = input.value.trim();
+      sendBtn.addEventListener('click', () => {
+        const phone = document.getElementById('phone').value.trim();
+        const name = document.getElementById('name').value.trim();
+        const message = messageBox.value.trim();
+        const templateType = templateTypeSelect.value;
+        const templateName = templateSelect.value;
+      
+        if(!phone.match(/^\+36\d{8,9}$/)) {
+          alert('Kérlek, adj meg egy érvényes magyar telefonszámot +36 formátumban!');
+          return;
+        }
+        if(templateType === 'text' && !message) {
+          alert('Az üzenet nem lehet üres!');
+          return;
+        }
+      
+        sendBtn.disabled = true;
+        statusDiv.textContent = 'Üzenet küldése folyamatban...';
+        statusDiv.classList.add('show');
+      
+        const formData = new FormData();
+        formData.append('phone', phone);
+        formData.append('name', name);
+        formData.append('message', message);
+        formData.append('templateType', templateType);
+        formData.append('templateName', templateName);
+      
+        if(templateType === 'whatsapp' && templateName) {
+          const paramsInputs = templateParamsDiv.querySelectorAll('input[data-param-name]');
+          const params = {};
+          paramsInputs.forEach(input => {
+            params[input.dataset.paramName] = input.value.trim();
+          });
+          formData.append('parameters', JSON.stringify(params));
+        }
+      
+        const file = fileInput.files[0];
+        if(file) {
+          formData.append('file', file);
+        }
+      
+        // VÉGPONT kiválasztás:
+        let url;
+        if(file) {
+          url = '/send-file-message';
+        } else if(templateType === 'whatsapp' && templateName) {
+          url = '/send-template-message';
+        } else {
+          url = '/send-message';
+        }
+      
+        fetch(url, {
+          method: 'POST',
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          // Ellenőrizzük a visszatérő adatot:
+          if(data && data.success) {
+            statusDiv.textContent = '✅ Üzenet sikeresen elküldve!';
+            addHistory(phone, message);
+            clearForm();
+          } else {
+            statusDiv.textContent = '❌ Hiba történt: ' + (data.error || 'Ismeretlen hiba');
+          }
+        })
+        .catch(err => {
+          statusDiv.textContent = '❌ Hálózati hiba történt.';
+          console.error(err);
+        })
+        .finally(() => {
+          sendBtn.disabled = false;
+          setTimeout(() => {
+            statusDiv.classList.remove('show');
+            statusDiv.textContent = '';
+          }, 4000);
         });
-        formData.append('parameters', JSON.stringify(params));
-      }
+      });
 
       // Fájl feltöltés
       const file = fileInput.files[0];
