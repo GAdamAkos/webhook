@@ -156,11 +156,14 @@
         let displayContent = formatContent(msg.content);
         if (!displayContent) displayContent = '<em>(üres üzenet)</em>';
 
-        const media = msg.media_url
-          ? (msg.type === 'image'
-              ? `<img src="${msg.media_url}" alt="Kép">`
-              : `<a class="media-link" href="${msg.media_url}" target="_blank">📎 Média megnyitása</a>`)
-          : '';
+        let media = '';
+        if (msg.media_url) {
+          if (msg.type === 'image') {
+            media = `<img src="${msg.media_url}" alt="Elküldött kép">`;
+          } else {
+            media = `<a class="media-link" href="${msg.media_url}" target="_blank">📎 Média megnyitása</a>`;
+          }
+        }
 
         card.innerHTML = `
           <div class="message-header">${msg.phone} <span class="type">${msg.type}</span></div>
