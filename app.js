@@ -84,6 +84,37 @@ app.get('/webhook', (req, res) => {
     }
 });
 
+app.get('/available-templates', async (req, res) => {
+  const accessToken = process.env.ACCESS_TOKEN;
+  const businessId = process.env.BUSINESS_ID;
+
+  try {
+    const response = await axios.get(
+      `https://graph.facebook.com/v19.0/${businessId}/message_templates`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    // Átalakítás: sablon neve → paraméter helyőrzők
+    const simplified = {};
+    response.data.data.forEach(t => {
+      const components = t.components || [];
+      const body = components.find(c => c.type === 'BODY');
+      const text = body?.text || '';
+      const placeholders = [...text.matchAll(/{{(\d+)}}/g)].map(match => `Paraméter ${match[1]}`);
+      simplified[t.name] = placeholders;
+    });
+
+    res.json(simplified);
+  } catch (error) {
+    console.error('❌ Hiba a sablonok lekérésénél:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Nem sikerült lekérni a sablonokat.' });
+  }
+});
+
 app.post('/send-message', async (req, res) => {
     const { phone, message } = req.body;
     const phoneNumberId = process.env.PHONE_NUMBER_ID;
