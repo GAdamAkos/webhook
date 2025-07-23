@@ -9,6 +9,7 @@ const FormData = require('form-data');
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/sent-media', express.static(path.join(__dirname, 'public/sent_media')));
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 const port = process.env.PORT || 3000;
 
