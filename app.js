@@ -252,12 +252,11 @@ app.post('/send-file-message', upload.single('file'), async (req, res) => {
         const sentMediaDir = path.join(__dirname, 'public/sent_media');
             fs.mkdirSync(sentMediaDir, { recursive: true });
             
-            const newFileName = `${Date.now()}_${file.originalname}`;
-            const newFilePath = path.join(sentMediaDir, newFileName);
+            const localFilename = `${Date.now()}_${file.originalname}`;
+            const localPath = path.join(__dirname, 'public/sent_media', localFilename);
+            fs.renameSync(file.path, localPath);
             
-            await fs.promises.rename(file.path, newFilePath);
-            
-            const mediaUrl = `/sent_media/${newFileName}`;
+            const mediaUrl = `/sent-media/${localFilename}`;
 
         console.log('✅ Média üzenet elküldve:', response.data);
 
@@ -272,7 +271,7 @@ app.post('/send-file-message', upload.single('file'), async (req, res) => {
                     mediaType,
                     message || '',
                     new Date().toISOString(),
-                    `https://graph.facebook.com/v19.0/${mediaId}` // opcionális URL hivatkozás
+                    mediaUrl
                 ]
             );
         }
