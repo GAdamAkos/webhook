@@ -104,30 +104,33 @@ app.get('/available-templates', async (req, res) => {
             }
         );
 
-        // Itt lehet feldolgozni a választ:
         const templates = response.data.data || [];
 
         const simplified = {};
-        templates.forEach(tpl => {
-            // Ha vannak paraméterek, jelenítsük meg őket is (pl. body text placeholders)
-            const params = [];
-            const components = tpl.components || [];
-            const body = components.find(c => c.type === 'BODY');
-            if (body && body.text) {
-                const matches = body.text.match(/\{\{\d+\}\}/g) || [];
-                for (let i = 0; i < matches.length; i++) {
-                    params.push(`Paraméter ${i + 1}`);
-                }
-            }
 
-            simplified[tpl.name] = params;
+        templates.forEach(tpl => {
+            const templateName = tpl.name;
+            const parameters = [];
+
+            tpl.components?.forEach(component => {
+                if (component.type === 'BODY' && component.text) {
+                    const matches = component.text.match(/\{\{\d+\}\}/g);
+                    if (matches) {
+                        matches.forEach((_, index) => {
+                            parameters.push(`Paraméter ${index + 1}`);
+                        });
+                    }
+                }
+            });
+
+            simplified[templateName] = parameters;
         });
 
         res.json(simplified);
 
     } catch (error) {
         console.error('❌ Hiba a sablonok lekérésénél:', error.response?.data || error.message);
-        res.status(500).json({ error: error.response?.data || 'Ismeretlen hiba' });
+        res.status(500).json({ error: error.response?.data || 'Ismeretlen hiba történt.' });
     }
 });
 
