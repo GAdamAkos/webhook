@@ -88,6 +88,8 @@ app.get('/available-templates', async (req, res) => {
     const phoneNumberId = process.env.PHONE_NUMBER_ID;
     const accessToken = process.env.ACCESS_TOKEN;
 
+    console.log('📞 Lekérdezett PHONE_NUMBER_ID:', phoneNumberId);
+
     if (!phoneNumberId || !accessToken) {
         return res.status(500).json({ error: 'PHONE_NUMBER_ID vagy ACCESS_TOKEN hiányzik a környezeti változók közül.' });
     }
