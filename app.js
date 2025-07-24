@@ -187,6 +187,53 @@ app.post('/send-message', async (req, res) => {
     }
 });
 
+app.post('/send-template-message', async (req, res) => {
+  const { phone, template, parameters } = req.body;
+  const accessToken = process.env.ACCESS_TOKEN;
+  const senderPhoneNumberId = process.env.PHONE_NUMBER_ID;
+
+  if (!accessToken || !senderPhoneNumberId) {
+    return res.status(500).json({ error: 'ACCESS_TOKEN vagy PHONE_NUMBER_ID hiányzik.' });
+  }
+
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/${senderPhoneNumberId}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: phone,
+        type: "template",
+        template: {
+          name: template,
+          language: { code: "hu" }, // vagy "en_US" ha angol a sablon
+          components: [
+            {
+              type: "body",
+              parameters: parameters.map(p => ({
+                type: "text",
+                text: p
+              }))
+            }
+          ]
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    console.log("✅ WhatsApp sablon üzenet elküldve:", response.data);
+    res.json({ success: true, message: "WhatsApp sablon elküldve!" });
+
+  } catch (err) {
+    console.error("❌ Hiba sablon küldésekor:", err.response?.data || err.message);
+    res.status(500).json({ error: "Nem sikerült elküldeni a sablont." });
+  }
+});
+
 app.post('/send-template', async (req, res) => {
     const { phone, templateName, languageCode = 'hu', parameters = [] } = req.body;
     const phoneNumberId = process.env.PHONE_NUMBER_ID;
