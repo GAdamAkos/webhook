@@ -1,1 +1,44 @@
-EAAKF8mZAQGmQBPMZAgilpA7J9eOCYxJbhtDazfRYfMFjRmszzGoxJEHCu8PosNdW9LLyuBCPtZC6Sarb1gvusexfHWxYn4kyOSGcUO9ZCCTlAHOp1kM72Iid5Ij7pRZAABbtZAS4r3hHu131Ram8OoJWtjZB2jamZBSVxkJTJWPZB4jaMk36TBdG6FzgjQe0HhGchanyf4WpZBrpvikGrHdZBOwYN6xyUD6sfUjE7h9usnmt78ouwZDZD
+❌ Hálózati vagy API hiba: ReferenceError: ACCESS_TOKEN is not defined
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\app.js:217:44
+    at Layer.handle [as handle_request] (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:284:15
+    at Function.process_params (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:280:10)
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\body-parser\lib\read.js:137:5
+    at AsyncResource.runInAsyncScope (node:async_hooks:214:14)
+❌ Hálózati vagy API hiba: ReferenceError: ACCESS_TOKEN is not defined
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\app.js:217:44
+    at Layer.handle [as handle_request] (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:284:15
+    at Function.process_params (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:280:10)
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\body-parser\lib\read.js:137:5
+    at AsyncResource.runInAsyncScope (node:async_hooks:214:14)
+❌ Hálózati vagy API hiba: ReferenceError: ACCESS_TOKEN is not defined
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\app.js:217:44
+    at Layer.handle [as handle_request] (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:284:15
+    at Function.process_params (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:280:10)
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\body-parser\lib\read.js:137:5
+    at AsyncResource.runInAsyncScope (node:async_hooks:214:14)
+❌ Hálózati vagy API hiba: ReferenceError: ACCESS_TOKEN is not defined
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\app.js:217:44
+    at Layer.handle [as handle_request] (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:284:15
+    at Function.process_params (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\express\lib\router\index.js:280:10)
+    at C:\Users\adamk\OneDrive\ASZTAL~1\projekt2\webhook-main\node_modules\body-parser\lib\read.js:137:5
+    at AsyncResource.runInAsyncScope (node:async_hooks:214:14)
