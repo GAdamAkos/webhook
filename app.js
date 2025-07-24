@@ -191,10 +191,11 @@ app.post('/send-template-message', async (req, res) => {
     const { phone, templateName, languageCode = 'hu', parameters = [] } = req.body;
     const phoneNumberId = process.env.PHONE_NUMBER_ID;
     const accessToken = process.env.ACCESS_TOKEN;
+    const templateName = template;
 
     if (!phone || !templateName) {
-        return res.status(400).json({ message: 'Hiányzó telefonszám vagy sablon név' });
-    }
+    return res.status(400).json({ message: 'Hiányzó telefonszám vagy sablon név' });
+  }
 
     const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
 
