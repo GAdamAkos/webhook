@@ -196,7 +196,7 @@ app.post('/send-template-message', async (req, res) => {
     return res.status(400).json({ message: 'Hiányzó telefonszám vagy sablon név' });
   }
 
-    const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+    const url = `https://graph.facebook.com/v19.0/{phoneNumberId}/messages`;
 
     const payload = {
         messaging_product: "whatsapp",
