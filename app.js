@@ -190,7 +190,7 @@ app.post('/send-message', async (req, res) => {
 app.post('/send-template-message', async (req, res) => {
   const { phone, template, parameters = [] } = req.body;
 
-  const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
+  const url = `https://graph.facebook.com/v19.0/$675376605666287/messages`;
 
   const payload = {
     messaging_product: "whatsapp",
