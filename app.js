@@ -188,49 +188,49 @@ app.post('/send-message', async (req, res) => {
 });
 
 app.post('/send-template-message', async (req, res) => {
-  const { phone, template, parameters } = req.body;
-  const accessToken = process.env.ACCESS_TOKEN;
-  const senderPhoneNumberId = process.env.PHONE_NUMBER_ID;
+  const { phone, template, parameters = [] } = req.body;
 
-  if (!accessToken || !senderPhoneNumberId) {
-    return res.status(500).json({ error: 'ACCESS_TOKEN vagy PHONE_NUMBER_ID hiányzik.' });
-  }
+  const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
+
+  const payload = {
+    messaging_product: "whatsapp",
+    to: phone,
+    type: "template",
+    template: {
+      name: template,
+      language: {
+        code: "hu"
+      },
+      components: parameters.length > 0 ? [
+        {
+          type: "body",
+          parameters: parameters.map(p => ({ type: "text", text: p }))
+        }
+      ] : undefined
+    }
+  };
 
   try {
-    const response = await axios.post(
-      `https://graph.facebook.com/v19.0/${senderPhoneNumberId}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: phone,
-        type: "template",
-        template: {
-          name: template,
-          language: { code: "hu" }, // vagy "en_US" ha angol a sablon
-          components: [
-            {
-              type: "body",
-              parameters: parameters.map(p => ({
-                type: "text",
-                text: p
-              }))
-            }
-          ]
-        }
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${ACCESS_TOKEN}`,
+        "Content-Type": "application/json"
       },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
+      body: JSON.stringify(payload)
+    });
 
-    console.log("✅ WhatsApp sablon üzenet elküldve:", response.data);
-    res.json({ success: true, message: "WhatsApp sablon elküldve!" });
+    const data = await response.json();
 
+    if (!response.ok) {
+      console.error("❌ WhatsApp API hiba:", data);
+      return res.status(response.status).json({ error: data.error.message });
+    }
+
+    res.json({ message: "✅ Sablon üzenet elküldve!", data });
   } catch (err) {
-    console.error("❌ Hiba sablon küldésekor:", err.response?.data || err.message);
-    res.status(500).json({ error: "Nem sikerült elküldeni a sablont." });
+    console.error("❌ Hálózati vagy API hiba:", err);
+    res.status(500).json({ error: "Szerver hiba sablonküldés közben." });
   }
 });
 
